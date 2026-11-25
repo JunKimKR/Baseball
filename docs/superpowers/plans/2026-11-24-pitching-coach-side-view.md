@@ -102,7 +102,7 @@ web/
                 "causes": [{"id": "...", "title": "...",
                             "self_test": {"id": "...", "instruction": "...",
                                           "options": [{"id": "pass", "label": "..."}, {"id": "fail", "label": "..."}],
-                                          "implies_cause_on": "fail"},
+                                          "implies_cause_on": "fail", "source": "..."},
                             "exercises": [{"id": "...", "name": "...", "sets_reps": "3×8", "description": "...", "source": "..."}]}]}]
 }
 ```
