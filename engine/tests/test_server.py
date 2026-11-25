@@ -1,3 +1,4 @@
+import json
 import time
 import warnings
 
@@ -154,3 +155,27 @@ def test_serves_web_dir(pitch, tmp_path):
     c = TestClient(create_app(tmp_path / "d", FakeEstimator(*pitch), web_dir=web))
     assert "hi" in c.get("/").text
     assert c.get("/api/analyses").json() == []
+
+
+def test_capture_fps_form_field(pitch, tmp_path):
+    kp, meta = pitch
+    slowmo = VideoMeta(fps=30.0, width=meta.width, height=meta.height, n_frames=meta.n_frames)
+    c = _client(tmp_path, FakeEstimator(kp, slowmo))
+    aid = _upload(c, capture_fps="240").json()["id"]
+    body = c.get(f"/api/analyses/{aid}").json()
+    assert body["status"] == "done"
+    assert body["result"]["meta"]["fps"] == 30.0 and body["result"]["meta"]["capture_fps"] == 240.0
+    st = json.loads((tmp_path / aid / "status.json").read_text(encoding="utf-8"))
+    assert st["capture_fps"] == 240.0
+    # optional: without it the container fps is the analysis fps
+    aid2 = _upload(c).json()["id"]
+    assert c.get(f"/api/analyses/{aid2}").json()["result"]["meta"]["capture_fps"] == 30.0
+    assert json.loads((tmp_path / aid2 / "status.json").read_text(encoding="utf-8"))["capture_fps"] is None
+
+
+def test_capture_fps_out_of_range_422(pitch, tmp_path):
+    c = _client(tmp_path, FakeEstimator(*pitch))
+    for bad in ("0", "0.5", "1001", "abc", "nan"):
+        r = _upload(c, capture_fps=bad)
+        assert r.status_code == 422, bad
+    assert list(tmp_path.iterdir()) == []

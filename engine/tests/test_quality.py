@@ -50,3 +50,14 @@ def test_quality_rejects_no_person():
 def test_quality_too_short():
     ws = check_quality(VideoMeta(240, 1080, 1920, 120), _kp(120), SUBJ, KEY)
     assert [(w.code, w.severity) for w in ws] == [("TOO_SHORT", "error")]
+
+
+def test_quality_uses_capture_fps():
+    # 240 fps slow motion in a 30 fps container: 480 frames = 2 s of motion (16 s of playback)
+    slowmo = VideoMeta(30, 1080, 1920, 480, capture_fps=240.0)
+    assert _codes(slowmo, _kp(480)) == []
+    # 120 frames at 240 fps is 0.5 s of motion even though it plays for 4 s
+    short = VideoMeta(30, 1080, 1920, 120, capture_fps=240.0)
+    assert [w.code for w in check_quality(short, _kp(120), SUBJ, KEY)] == ["TOO_SHORT"]
+    # and a clip captured at 30 fps but labeled 240 gets the low-fps warnings
+    assert _codes(VideoMeta(240, 1080, 1920, 480, capture_fps=30.0), _kp(480)) == ["LOW_FPS", "TIMING_DISABLED"]

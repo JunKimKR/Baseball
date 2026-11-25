@@ -16,14 +16,23 @@ SCHEMA_VERSION = 1
 
 @dataclass
 class VideoMeta:
-    fps: float
+    fps: float  # container frame rate: maps a frame index to playback time
     width: int
     height: int
     n_frames: int
+    # frame rate the video was shot at, when it differs from the container's (a slow-motion clip
+    # exported as a 30 fps file); None = the container fps
+    capture_fps: float | None = None
     norm_fps: float | None = None  # frame rate of the norms the metrics were scored against
 
     @property
+    def analysis_fps(self) -> float:
+        """Frame rate of the motion: what every time-based computation of the analysis uses."""
+        return self.fps if self.capture_fps is None else self.capture_fps
+
+    @property
     def duration_s(self) -> float:
+        """Playback duration of the file (container fps)."""
         return self.n_frames / self.fps if self.fps else 0.0
 
 
@@ -170,6 +179,7 @@ class AnalysisResult:
             vis = np.asarray(self.keypoints.vis, dtype=float)
             frames = np.concatenate([xy, vis[..., None]], axis=-1)
         meta = _plain(self.meta)
+        meta["capture_fps"] = _plain(self.meta.analysis_fps)
         meta["duration_s"] = self.meta.duration_s
         return {
             "schema_version": SCHEMA_VERSION,

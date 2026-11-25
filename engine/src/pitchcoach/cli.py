@@ -11,6 +11,16 @@ from .analyze import analyze
 from .models import Subject
 
 
+def _capture_fps(text: str) -> float:
+    try:
+        fps = float(text)
+    except ValueError:
+        fps = float("nan")
+    if not 1 <= fps <= 1000:  # also rejects NaN
+        raise argparse.ArgumentTypeError("capture fps must be a number between 1 and 1000")
+    return fps
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pitchcoach")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -19,6 +29,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--height", type=float, required=True, help="pitcher height in cm")
     p.add_argument("--hand", choices=["R", "L"], required=True, help="throwing hand")
     p.add_argument("--camera-side", choices=["arm", "glove"], default="arm")
+    p.add_argument("--capture-fps", type=_capture_fps, default=None,
+                   help="frame rate the clip was shot at, if the file says otherwise "
+                        "(slow motion exported as 30 fps: e.g. 240)")
     p.add_argument("--out", type=Path, required=True, help="result JSON path")
     sv = sub.add_parser("serve", help="run the local web server (127.0.0.1 only)")
     sv.add_argument("--port", type=int, default=8000)
@@ -35,7 +48,7 @@ def main(argv: list[str] | None = None, estimator=None) -> int:
             return 2
         subject = Subject(height_cm=args.height, hand=args.hand, camera_side=args.camera_side)
         try:
-            result = analyze(args.video, subject, estimator)
+            result = analyze(args.video, subject, estimator, capture_fps=args.capture_fps)
         except ValueError as exc:  # unreadable video
             print(str(exc), file=sys.stderr)
             return 2

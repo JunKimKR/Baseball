@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from pitchcoach.metrics import METRIC_DEFS, compute_metrics
 from pitchcoach.models import Events, Subject
@@ -10,9 +11,10 @@ SUBJ = Subject(height_cm=185.0, hand="R", camera_side="arm")
 TIMING = ["fp_to_br_ms", "gap_pelvis_shoulder_ms", "gap_shoulder_elbow_ms", "gap_elbow_wrist_ms"]
 
 
-def _run(fps=240, events=None, camera_moving=False):
+def _run(fps=240, events=None, camera_moving=False, scale_uncertain=False):
     kp, ev = make_pitch(fps=fps)
-    return {m.name: m for m in compute_metrics(kp, events or ev, float(fps), PPM, SUBJ, 1, camera_moving)}
+    return {m.name: m for m in compute_metrics(kp, events or ev, float(fps), PPM, SUBJ, 1, camera_moving,
+                                               scale_uncertain=scale_uncertain)}
 
 
 def test_metrics_names_fixed():
@@ -53,10 +55,32 @@ def test_metrics_medium_fps_lowers_timing():
 def test_metrics_camera_moving_lowers_linear_speeds():
     base, moving = _run(), _run(camera_moving=True)
     for n, x in moving.items():
-        if x.unit == "m/s":
-            assert x.confidence == "low"
+        if x.unit == "m/s" or n == "trunk_flexion_br_deg":
+            assert x.confidence == "low", n
         else:
-            assert x.confidence == base[n].confidence
+            assert x.confidence == base[n].confidence, n
+
+
+ANGLES = ["lead_knee_flexion_fp_deg", "lead_knee_extension_deg", "trunk_flexion_br_deg"]
+
+
+@pytest.mark.parametrize("fps, expected", [(240, "high"), (120, "high"), (100, "medium"),
+                                           (60, "medium"), (50, "low"), (30, "low")])
+def test_angle_confidence_follows_fps(fps, expected):
+    """Angles shift and scatter at low frame rates (OBP trials at 30 Hz vs 240 Hz: knee flexion at
+    plant +4 deg, paired sd above 5 deg), so they lose confidence like the timing metrics."""
+    m = _run(fps=fps)
+    for n in ANGLES:
+        assert m[n].confidence == expected, (fps, n)
+    for n in ("pelvis_rotation_proxy_deg", "shoulder_rotation_proxy_deg"):
+        assert m[n].confidence == "low", (fps, n)
+
+
+def test_trunk_flexion_low_under_camera_motion():
+    """A hand-held camera rolls, which tilts the image vertical the trunk angle is measured from."""
+    m = _run(fps=240, camera_moving=True)
+    assert m["trunk_flexion_br_deg"].confidence == "low"
+    assert m["lead_knee_flexion_fp_deg"].confidence == "high"  # joint angles do not need the vertical
 
 
 def test_metrics_missing_event():
@@ -78,3 +102,13 @@ def test_elbow_extension_velocity_is_reference_only():
     (elbow,) = [m for m in score_metrics(metrics, load_norms()) if m.name == "elbow_ext_peak_vel_dps"]
     assert elbow.confidence == "low" and elbow.value is not None
     assert elbow.score is None and elbow.z is None and elbow.norm is None
+
+
+def test_uncertain_scale_lowers_scale_dependent_metrics():
+    """Stride (% of height) and m/s depend on the height-based scale; angles and times do not."""
+    base, unsure = _run(), _run(scale_uncertain=True)
+    for n, x in unsure.items():
+        if x.unit == "m/s" or n == "stride_length_pct_height":
+            assert x.confidence == "low", n
+        else:
+            assert x.confidence == base[n].confidence, n

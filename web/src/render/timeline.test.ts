@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../fixtures/sample-result.json";
 import type { AnalysisResult, Leak, Metric } from "../types";
-import { ghostMarkers, phaseRects, phaseStatus } from "./timeline";
+import { PHASE_STATUS_LABEL, ghostMarkers, phaseRects, phaseStatus } from "./timeline";
 
 const r = fixture as unknown as AnalysisResult;
 const phase = (name: string) => r.phases.find((p) => p.name === name)!;
@@ -46,10 +46,9 @@ describe("timeline", () => {
 
   it("phaseStatus warns on leak or low score", () => {
     const noLeaks: Leak[] = [];
-    // fixture: gap_elbow_wrist score 0 -> acceleration warns; stride_length 77 -> stride ok
+    // fixture: gap_elbow_wrist score 0 -> acceleration warns; stride_length 83 -> stride ok
     expect(phaseStatus(phase("acceleration"), r.metrics, noLeaks)).toBe("warn");
     expect(phaseStatus(phase("stride"), r.metrics, noLeaks)).toBe("ok");
-    expect(phaseStatus(phase("leg_lift"), r.metrics, noLeaks)).toBe("ok");
     // lead_knee_flexion score 0 -> arm_cocking warns
     expect(phaseStatus(phase("arm_cocking"), r.metrics, noLeaks)).toBe("warn");
     // a leak inside a phase warns even if scores are fine
@@ -57,15 +56,26 @@ describe("timeline", () => {
     const mid = Math.round((stride.start + stride.end) / 2);
     const leak: Leak = { segment: "arm", frame: mid, kind: "speed_drop", severity: 0.4, message: "x" };
     expect(phaseStatus(phase("stride"), r.metrics, [leak])).toBe("warn");
-    expect(phaseStatus(phase("follow_through"), r.metrics, [leak])).toBe("ok");
     // fp_to_br and trunk_flexion_peak_vel also belong to acceleration
     for (const name of ["fp_to_br_ms", "trunk_flexion_peak_vel_dps"]) {
       const ms = r.metrics.map((x) => ({ ...x, score: x.name === name ? 10 : 100 }));
       expect(phaseStatus(phase("acceleration"), ms, noLeaks)).toBe("warn");
     }
-    // null scores never warn
+  });
+
+  it("phaseStatus is unevaluated, not ok, when nothing in the phase was scored", () => {
+    const noLeaks: Leak[] = [];
+    // no metric maps to leg lift or follow-through
+    expect(phaseStatus(phase("leg_lift"), r.metrics, noLeaks)).toBe("unevaluated");
+    expect(phaseStatus(phase("follow_through"), r.metrics, noLeaks)).toBe("unevaluated");
+    // mapped metrics without a score (e.g. 30 fps, camera motion) are not evidence of "ok"
     const nulls = r.metrics.map((x) => ({ ...x, score: null }));
-    expect(phaseStatus(phase("acceleration"), nulls, noLeaks)).toBe("ok");
+    expect(phaseStatus(phase("acceleration"), nulls, noLeaks)).toBe("unevaluated");
+    // ... but a leak in the phase still warns
+    const ft = phase("follow_through");
+    const leak: Leak = { segment: "arm", frame: ft.start + 1, kind: "speed_drop", severity: 0.4, message: "x" };
+    expect(phaseStatus(ft, nulls, [leak])).toBe("warn");
+    expect(PHASE_STATUS_LABEL).toEqual({ ok: "양호", warn: "점검 필요", unevaluated: "평가 안 됨" });
   });
 });
 

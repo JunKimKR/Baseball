@@ -35,6 +35,15 @@ describe("api", () => {
     expect(fd.get("camera_side")).toBe("glove");
   });
 
+  it("uploadVideo sends capture_fps only when given", async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ id: "abc123" }, 201));
+    const file = new File(["x"], "pitch.mp4", { type: "video/mp4" });
+    await uploadVideo(file, { heightCm: 185, hand: "R", cameraSide: "arm", captureFps: 240 });
+    expect((fetchMock.mock.calls[0][1].body as FormData).get("capture_fps")).toBe("240");
+    await uploadVideo(file, { heightCm: 185, hand: "R", cameraSide: "arm" });
+    expect((fetchMock.mock.calls[1][1].body as FormData).has("capture_fps")).toBe(false);
+  });
+
   it("uploadVideo throws the server detail on 422", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ detail: "hand must be R or L" }, 422));
     const file = new File(["x"], "p.mp4");

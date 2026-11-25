@@ -68,12 +68,23 @@ export const METRIC_PHASE: Record<string, string> = {
 
 export const LOW_SCORE = 30;
 
-export function phaseStatus(phase: Phase, metrics: Metric[], leaks: Leak[]): "ok" | "warn" {
+export type PhaseStatus = "ok" | "warn" | "unevaluated";
+
+export const PHASE_STATUS_LABEL: Record<PhaseStatus, string> = {
+  ok: "양호",
+  warn: "점검 필요",
+  unevaluated: "평가 안 됨",
+};
+
+/**
+ * "warn": a leak in the phase or a mapped metric scoring below LOW_SCORE; "ok": scored metrics,
+ * all fine; "unevaluated": no scored metric maps to the phase and no leak — not evidence of "ok".
+ */
+export function phaseStatus(phase: Phase, metrics: Metric[], leaks: Leak[]): PhaseStatus {
   if (leaks.some((l) => l.frame >= phase.start && l.frame <= phase.end)) return "warn";
-  const low = metrics.some(
-    (m) => METRIC_PHASE[m.name] === phase.name && m.score !== null && m.score < LOW_SCORE,
-  );
-  return low ? "warn" : "ok";
+  const scored = metrics.filter((m) => METRIC_PHASE[m.name] === phase.name && m.score !== null);
+  if (scored.length === 0) return "unevaluated";
+  return scored.some((m) => (m.score as number) < LOW_SCORE) ? "warn" : "ok";
 }
 
 export const CONFIDENCE_LABEL: Record<string, string> = { high: "높음", medium: "중간", low: "낮음" };

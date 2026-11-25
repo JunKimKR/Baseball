@@ -33,22 +33,25 @@ const twoCause = (): Finding => {
 describe("FindingsPanel", () => {
   beforeEach(() => localStorage.clear());
 
+  const scoredOnly = (n: number) =>
+    r.metrics.map((m, i) => ({ ...m, score: i < n ? 50 : null, z: i < n ? 0 : null }));
+
   it("shows disclaimer", () => {
-    render(<FindingsPanel analysisId="id1" findings={r.findings} />);
+    render(<FindingsPanel analysisId="id1" findings={r.findings} metrics={r.metrics} />);
     expect(screen.getByText("트레이닝 코치와 상의 후 적용하세요.")).toBeInTheDocument();
     expect(screen.getByText(r.findings[0].title)).toBeInTheDocument();
   });
 
   it("explains empty causes", () => {
     const f = r.findings.find((x) => x.causes.length === 0)!;
-    render(<FindingsPanel analysisId="id1" findings={[f]} />);
+    render(<FindingsPanel analysisId="id1" findings={[f]} metrics={r.metrics} />);
     expect(screen.getByText(f.evidence)).toBeInTheDocument();
     expect(screen.getByText("근거가 확인된 원인 정보가 아직 없습니다.")).toBeInTheDocument();
   });
 
   it("narrows causes after self-test", async () => {
     const user = userEvent.setup();
-    render(<FindingsPanel analysisId="id9" findings={[twoCause()]} />);
+    render(<FindingsPanel analysisId="id9" findings={[twoCause()]} metrics={r.metrics} />);
     // nothing chosen: every cause listed as possible, with exercises
     expect(screen.getAllByText("가능성")).toHaveLength(2);
     expect(screen.getByText("운동A")).toBeInTheDocument();
@@ -62,7 +65,7 @@ describe("FindingsPanel", () => {
 
   it("restores answers from localStorage", () => {
     localStorage.setItem("selftest:id9", JSON.stringify({ st_b: "yes" }));
-    render(<FindingsPanel analysisId="id9" findings={[twoCause()]} />);
+    render(<FindingsPanel analysisId="id9" findings={[twoCause()]} metrics={r.metrics} />);
     expect(screen.getByText("운동B")).toBeInTheDocument();
     expect(screen.queryByText("운동A")).not.toBeInTheDocument();
   });
@@ -71,12 +74,31 @@ describe("FindingsPanel", () => {
     const user = userEvent.setup();
     const a = twoCause();
     const b = { ...twoCause(), issue_id: "y", title: "다른 문제" };
-    render(<FindingsPanel analysisId="id7" findings={[a, b]} />);
+    render(<FindingsPanel analysisId="id7" findings={[a, b]} metrics={r.metrics} />);
     const radios = screen.getAllByLabelText("a 해당") as HTMLInputElement[];
     expect(radios).toHaveLength(2);
     expect(radios[0].name).not.toBe(radios[1].name);
     await user.click(radios[0]);
     expect(radios[0].checked).toBe(true);
     expect(radios[1].checked).toBe(true);
+  });
+
+  it("always says how many metrics could be evaluated", () => {
+    const n = r.metrics.filter((m) => m.score !== null).length;
+    render(<FindingsPanel analysisId="id1" findings={r.findings} metrics={r.metrics} />);
+    expect(screen.getByText(`평가 가능한 지표 ${n}/${r.metrics.length}개`)).toBeInTheDocument();
+  });
+
+  it("does not call too few evaluated metrics 'no problems'", () => {
+    render(<FindingsPanel analysisId="id1" findings={[]} metrics={scoredOnly(7)} />);
+    expect(screen.getByText("평가 가능한 지표 7/15개")).toBeInTheDocument();
+    expect(screen.getByText("평가된 지표가 부족해 진단하지 않았습니다.")).toBeInTheDocument();
+    expect(screen.queryByText("뚜렷한 문제 지점이 발견되지 않았습니다.")).not.toBeInTheDocument();
+  });
+
+  it("says no clear problems only when enough metrics were evaluated", () => {
+    render(<FindingsPanel analysisId="id1" findings={[]} metrics={scoredOnly(8)} />);
+    expect(screen.getByText("뚜렷한 문제 지점이 발견되지 않았습니다.")).toBeInTheDocument();
+    expect(screen.queryByText("평가된 지표가 부족해 진단하지 않았습니다.")).not.toBeInTheDocument();
   });
 });

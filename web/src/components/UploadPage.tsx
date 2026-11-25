@@ -9,10 +9,13 @@ const STATUS_LABEL: Record<string, string> = {
   failed: "실패",
 };
 
+const CAPTURE_FPS_ERROR = "촬영 fps는 1~1000 사이로 입력해 주세요. 모르면 비워 두세요.";
+
 const DETAIL_KO: Array<[RegExp, string]> = [
   [/hand must be/i, "투구 손은 오른손 또는 왼손이어야 합니다."],
   [/camera_side must be/i, "카메라 방향 값이 올바르지 않습니다."],
   [/height_cm must be/i, "키는 100~250cm 사이로 입력해 주세요."],
+  [/capture_fps must be/i, CAPTURE_FPS_ERROR],
   [/unsupported video type/i, "지원하지 않는 영상 형식입니다. mp4, mov 등 동영상 파일을 올려 주세요."],
   [/empty video/i, "비어 있는 영상 파일입니다. 다른 파일을 선택해 주세요."],
 ];
@@ -30,6 +33,7 @@ export default function UploadPage() {
   const [height, setHeight] = useState("");
   const [hand, setHand] = useState<Hand>("R");
   const [side, setSide] = useState<CameraSide>("arm");
+  const [captureFps, setCaptureFps] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<AnalysisSummary[]>([]);
@@ -52,9 +56,11 @@ export default function UploadPage() {
     if (!Number.isFinite(h) || h < 100 || h > 250) {
       return setError("키는 100~250cm 사이로 입력해 주세요.");
     }
+    const cf = captureFps.trim() === "" ? undefined : Number(captureFps);
+    if (cf !== undefined && !(cf >= 1 && cf <= 1000)) return setError(CAPTURE_FPS_ERROR);
     setBusy(true);
     try {
-      const id = await uploadVideo(file, { heightCm: h, hand, cameraSide: side });
+      const id = await uploadVideo(file, { heightCm: h, hand, cameraSide: side, captureFps: cf });
       window.location.hash = `#/a/${id}`;
     } catch (err) {
       setError(koreanError(err instanceof Error ? err.message : String(err)));
@@ -71,7 +77,8 @@ export default function UploadPage() {
 
       <FilmingGuide />
 
-      <form className="card" onSubmit={onSubmit}>
+      {/* noValidate: our own checks give Korean messages (native bubbles follow the browser locale) */}
+      <form className="card" onSubmit={onSubmit} noValidate>
         <h2>새 분석</h2>
         <label className="field">
           <span>영상 파일</span>
@@ -88,6 +95,19 @@ export default function UploadPage() {
             placeholder="예: 180"
             value={height}
             onChange={(e) => setHeight(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>촬영 fps (슬로모션이면 촬영할 때의 fps, 예: 240)</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            min={1}
+            max={1000}
+            step="any"
+            placeholder="비워 두면 영상 파일의 fps"
+            value={captureFps}
+            onChange={(e) => setCaptureFps(e.target.value)}
           />
         </label>
         <fieldset className="field">

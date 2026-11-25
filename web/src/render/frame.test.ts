@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { frameAt, toCanvas } from "./frame";
+import { analysisFps, frameAt, toCanvas } from "./frame";
+
+describe("analysisFps", () => {
+  it("is the capture fps, else the container fps", () => {
+    expect(analysisFps({ fps: 30, capture_fps: 240 })).toBe(240);
+    expect(analysisFps({ fps: 30, capture_fps: null })).toBe(30);
+  });
+});
 
 describe("frameAt", () => {
   it("rounds and clamps", () => {

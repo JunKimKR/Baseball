@@ -17,7 +17,8 @@ const KEYS = {
     findings: true,
   }),
   meta: keysOf<VideoMeta>({
-    fps: true, width: true, height: true, n_frames: true, duration_s: true, norm_fps: true,
+    fps: true, width: true, height: true, n_frames: true, duration_s: true, capture_fps: true,
+    norm_fps: true,
   }),
   subject: keysOf<Subject>({ height_cm: true, hand: true, camera_side: true }),
   warning: keysOf<AnalysisWarning>({ code: true, severity: true, message: true }),

@@ -60,7 +60,11 @@ def _gap_ms(a: int | None, b: int | None, fps: float):
 
 
 def compute_metrics(kp: Keypoints, events: Events, fps: float, ppm: float, subject: Subject,
-                    direction: int, camera_moving: bool = False) -> list[Metric]:
+                    direction: int, camera_moving: bool = False,
+                    scale_uncertain: bool = False) -> list[Metric]:
+    """The 15 metrics with their confidence. `camera_moving` lowers linear speeds and the trunk
+    angle; `scale_uncertain` (scale.is_scale_uncertain) lowers what depends on the height-based scale:
+    stride and the linear speeds."""
     xy = np.asarray(kp.xy, dtype=float)
     j = side_joints(subject.hand)
     height_m = subject.height_cm / 100.0
@@ -115,9 +119,18 @@ def compute_metrics(kp: Keypoints, events: Events, fps: float, ppm: float, subje
                 value = None
             if fps < FULL_RATE_FPS and conf == "high":
                 conf = "medium"
+        if d["unit"] == "°":  # angles (not angular velocities): shift and scatter at low fps
+            if fps < MIN_TIMING_FPS:
+                conf = "low"
+            elif fps < FULL_RATE_FPS and conf == "high":
+                conf = "medium"
+        if d["name"] == "trunk_flexion_br_deg" and camera_moving:
+            conf = "low"  # measured from the image vertical, which a moving camera rolls
         if d["unit"] == "°/s" and fps < MIN_TIMING_FPS:
             conf = "low"
-        if d["unit"] == "m/s" and (fps < MIN_TIMING_FPS or camera_moving):
+        if d["unit"] == "m/s" and (fps < MIN_TIMING_FPS or camera_moving or scale_uncertain):
+            conf = "low"
+        if d["name"] == "stride_length_pct_height" and scale_uncertain:
             conf = "low"
         out.append(Metric(d["name"], d["label"], value, d["unit"], conf, d["segment"]))
     return out

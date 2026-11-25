@@ -68,4 +68,33 @@ describe("AnalysisPage", () => {
     expect(screen.getAllByText("참고값").length).toBeGreaterThan(0);
     expect(screen.getByText("트레이닝 코치와 상의 후 적용하세요.")).toBeInTheDocument();
   });
+
+  it("shows the container, analysis and norm frame rates", () => {
+    impl = (_id, onUpdate) => (onUpdate(done(r)), () => {});
+    render(<AnalysisPage id="x" />);
+    expect(screen.getByText("영상 60fps · 분석 60fps · 비교 기준값 60fps")).toBeInTheDocument();
+  });
+
+  it("converts frames to ms with the capture fps of a slow-motion export", () => {
+    // same frames, container says 30: timing texts must not change (analysis fps is still 60)
+    impl = (_id, onUpdate) => (onUpdate(done(r)), () => {});
+    const { unmount } = render(<AnalysisPage id="x" />);
+    const timing = () => screen.getAllByText(/최고속도 시점: 기준보다/).map((e) => e.textContent);
+    const before = timing();
+    unmount();
+    const slowmo = { ...r, meta: { ...r.meta, fps: 30, capture_fps: 60 } };
+    impl = (_id, onUpdate) => (onUpdate(done(slowmo)), () => {});
+    render(<AnalysisPage id="x" />);
+    expect(screen.getByText("영상 30fps · 분석 60fps · 비교 기준값 60fps")).toBeInTheDocument();
+    expect(timing()).toEqual(before);
+  });
+
+  it("marks phases without scored metrics as not evaluated", () => {
+    impl = (_id, onUpdate) => (onUpdate(done(r)), () => {});
+    render(<AnalysisPage id="x" />);
+    const legLift = screen.getByRole("button", { name: /레그 리프트 프레임/ });
+    expect(legLift).toHaveTextContent("평가 안 됨");
+    expect(legLift).not.toHaveTextContent("양호");
+    expect(screen.getByRole("button", { name: /레그 리프트 구간으로 이동 — 평가 안 됨/ })).toBeInTheDocument();
+  });
 });

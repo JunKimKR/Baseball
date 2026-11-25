@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import type { Cause, Finding } from "../types";
+import type { Cause, Finding, Metric } from "../types";
+
+/** With no findings and fewer scored metrics than this, "no problems" would claim too much. */
+export const MIN_SCORED_FOR_DIAGNOSIS = 8;
 
 type Answers = Record<string, string>;
 
@@ -85,9 +88,19 @@ function CauseCard({
   );
 }
 
-export default function FindingsPanel({ findings, analysisId }: { findings: Finding[]; analysisId: string }) {
+export default function FindingsPanel({
+  findings,
+  metrics,
+  analysisId,
+}: {
+  findings: Finding[];
+  metrics: Metric[];
+  analysisId: string;
+}) {
   const [answers, setAnswers] = useState<Answers>(() => loadAnswers(analysisId));
   useEffect(() => setAnswers(loadAnswers(analysisId)), [analysisId]);
+
+  const scored = metrics.filter((m) => m.score !== null).length;
 
   const answer = (selfTestId: string, optionId: string) =>
     setAnswers((prev) => {
@@ -100,7 +113,15 @@ export default function FindingsPanel({ findings, analysisId }: { findings: Find
     <section className="card">
       <h2>진단과 개선 제안</h2>
       <p className="disclaimer">트레이닝 코치와 상의 후 적용하세요.</p>
-      {findings.length === 0 && <p className="muted">뚜렷한 문제 지점이 발견되지 않았습니다.</p>}
+      <p className="muted section-note">
+        평가 가능한 지표 {scored}/{metrics.length}개
+      </p>
+      {findings.length === 0 &&
+        (scored < MIN_SCORED_FOR_DIAGNOSIS ? (
+          <p className="muted">평가된 지표가 부족해 진단하지 않았습니다.</p>
+        ) : (
+          <p className="muted">뚜렷한 문제 지점이 발견되지 않았습니다.</p>
+        ))}
       {findings.map((f) => {
         const likely = new Set(
           f.causes.filter((c) => answers[c.self_test.id] === c.self_test.implies_cause_on).map((c) => c.id),

@@ -3,6 +3,15 @@ export interface Size {
   h: number;
 }
 
+/**
+ * Frames per second of the captured motion: use it to turn frame counts into milliseconds.
+ * `fps` (the container's) maps frames to playback time instead; the two differ for slow-motion
+ * clips exported at 30 fps.
+ */
+export function analysisFps(meta: { fps: number; capture_fps: number | null }): number {
+  return meta.capture_fps ?? meta.fps;
+}
+
 /** Video time → frame index, clamped to the valid range. */
 export function frameAt(timeS: number, fps: number, nFrames: number): number {
   const f = Math.round(timeS * fps);

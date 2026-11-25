@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { HttpError, pollAnalysis, videoUrl } from "../api";
-import type { AnalysisResult, AnalysisState, Metric } from "../types";
+import type { AnalysisResult, AnalysisState, Metric, VideoMeta } from "../types";
 import { CONFIDENCE_LABEL, missingReason } from "../render/timeline";
 import FilmingGuide from "./FilmingGuide";
 import FindingsPanel from "./FindingsPanel";
@@ -10,6 +10,18 @@ import VideoOverlay from "./VideoOverlay";
 
 function fmt(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+function fpsText(v: number | null): string {
+  if (v === null || !Number.isFinite(v) || v <= 0) return "fps 알 수 없음";
+  return `${Number.isInteger(v) ? v : Number(v.toFixed(2))}fps`;
+}
+
+/** Container fps (playback), analysis fps (capture) and the fps of the norms used. */
+function FpsLine({ meta }: { meta: VideoMeta }) {
+  const parts = [`영상 ${fpsText(meta.fps)}`, `분석 ${fpsText(meta.capture_fps)}`];
+  if (meta.norm_fps !== null) parts.push(`비교 기준값 ${fpsText(meta.norm_fps)}`);
+  return <p className="muted section-note">{parts.join(" · ")}</p>;
 }
 
 function Warnings({ result }: { result: AnalysisResult }) {
@@ -151,7 +163,7 @@ export default function AnalysisPage({ id }: { id: string }) {
         <PhaseTimeline result={result} currentFrame={frame} onSeek={setSeekTo} />
         <SegmentScores segments={result.segments} />
         <MetricsTable result={result} />
-        <FindingsPanel findings={result.findings} analysisId={id} />
+        <FindingsPanel findings={result.findings} metrics={result.metrics} analysisId={id} />
       </>
     );
   }
@@ -160,6 +172,7 @@ export default function AnalysisPage({ id }: { id: string }) {
     <>
       <a href="#/" className="back">← 처음으로</a>
       <h1>분석 결과</h1>
+      {result && <FpsLine meta={result.meta} />}
       {body}
     </>
   );

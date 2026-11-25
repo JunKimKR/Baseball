@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AnalysisResult, Confidence } from "../types";
-import { frameAt, toCanvas } from "../render/frame";
-import { activeLeaks, particlesFor, segmentStyle } from "../render/energy";
+import type { AnalysisResult } from "../types";
+import { analysisFps, frameAt, toCanvas } from "../render/frame";
+import { activeLeaks, overlayConfidence, particlesFor, segmentStyle } from "../render/energy";
 import { notifyOnChange, shortcutFor } from "../render/controls";
 import { jointIndex, segmentJoints, segmentLines } from "../render/skeleton";
 import type { Pt, Segment } from "../render/skeleton";
@@ -26,14 +26,13 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
   onFrameRef.current = onFrame;
   const notify = useMemo(() => notifyOnChange((f) => onFrameRef.current?.(f)), []);
 
+  // fps: container rate, maps frames <-> playback time; motionFps: capture rate, for real-time spans
   const { fps, n_frames: nFrames, width, height } = result.meta;
+  const motionFps = analysisFps(result.meta);
   const idx = useMemo(() => jointIndex(result.keypoints.joints), [result]);
   const joints = useMemo(() => segmentJoints(result.subject.hand), [result]);
-  const conf = useMemo(() => {
-    const m: Record<string, Confidence> = {};
-    for (const s of result.segments) m[s.segment] = s.confidence;
-    return m;
-  }, [result]);
+  // dimming follows the confidence of the speed each column draws, not the segment score's
+  const conf = useMemo(() => overlayConfidence(result.metrics), [result]);
 
   /** `mediaTime`: presentation time of the displayed frame (rVFC path); defaults to currentTime. */
   const draw = useCallback((mediaTime?: number) => {
@@ -58,7 +57,7 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
     const fSmooth = Math.min(t * fps, nFrames - 1);
     const kp = result.keypoints.frames[f];
     if (!kp) return;
-    const leaks = activeLeaks(result.energy.leaks, f, Math.round(0.05 * fps));
+    const leaks = activeLeaks(result.energy.leaks, f, Math.round(0.05 * motionFps));
     const leaking = new Set(leaks.map((l) => l.segment));
     const vs = { w: width, h: height };
     const cs = { w: cw, h: ch };
@@ -75,7 +74,7 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
       if (lines.length === 0) return;
       const intensity = result.energy.intensity[f]?.[si] ?? 0;
       const isLeak = leaking.has(name);
-      const st = segmentStyle(intensity, conf[name] ?? "low", isLeak);
+      const st = segmentStyle(intensity, conf[seg] ?? "low", isLeak);
 
       ctx.save();
       ctx.globalAlpha = st.alpha;
@@ -110,7 +109,7 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
 
     setFrame((prev) => (prev === f ? prev : f));
     notify(f);
-  }, [notify, result, idx, joints, conf, fps, nFrames, width, height]);
+  }, [notify, result, idx, joints, conf, fps, motionFps, nFrames, width, height]);
 
   // redraw loop: requestVideoFrameCallback when available, else rAF
   useEffect(() => {

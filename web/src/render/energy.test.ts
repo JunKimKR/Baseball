@@ -1,6 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { activeLeaks, particlesFor, segmentStyle } from "./energy";
-import type { Leak } from "../types";
+import fixture from "../fixtures/sample-result.json";
+import { activeLeaks, overlayConfidence, particlesFor, segmentStyle } from "./energy";
+import type { AnalysisResult, Confidence, Leak, Metric } from "../types";
+
+const r = fixture as unknown as AnalysisResult;
+
+describe("overlayConfidence", () => {
+  const withConf = (conf: Record<string, Confidence>): Metric[] =>
+    r.metrics.map((m) => (m.name in conf ? { ...m, confidence: conf[m.name] } : m));
+
+  it("takes each drawn column's confidence from the linear speed it shows", () => {
+    const metrics = withConf({
+      pelvis_peak_speed_ms: "high", shoulder_peak_speed_ms: "medium", wrist_peak_speed_ms: "low",
+      pelvis_rotation_proxy_deg: "high", stride_length_pct_height: "low",
+    });
+    expect(overlayConfidence(metrics)).toEqual({ legs: "high", pelvis: "low", trunk: "medium", arm: "low" });
+  });
+
+  it("ignores segment confidence (it comes from other metrics)", () => {
+    const camMoving = withConf({
+      pelvis_peak_speed_ms: "low", shoulder_peak_speed_ms: "low", wrist_peak_speed_ms: "low",
+    });
+    expect(Object.values(overlayConfidence(camMoving))).toEqual(["low", "low", "low", "low"]);
+  });
+
+  it("is low when the metric is missing", () => {
+    expect(overlayConfidence([])).toEqual({ legs: "low", pelvis: "low", trunk: "low", arm: "low" });
+  });
+});
 
 describe("segmentStyle", () => {
   it("interpolates color and width by intensity", () => {

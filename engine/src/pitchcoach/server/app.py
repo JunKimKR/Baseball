@@ -56,10 +56,10 @@ def create_app(data_dir: Path, estimator=None, web_dir: Path | None = None) -> F
         st.update(status=status, error=error)
         _write_json(d / "status.json", st)
 
-    def run_job(aid: str, video: Path, subject: Subject) -> None:
+    def run_job(aid: str, video: Path, subject: Subject, capture_fps: float | None) -> None:
         d = data_dir / aid
         try:
-            result = analyze(video, subject, estimator)
+            result = analyze(video, subject, estimator, capture_fps=capture_fps)
             _write_json(d / "result.json", result.to_dict())
             set_status(d, "done")
         except Exception as exc:  # never leave the analysis stuck in "processing"
@@ -73,6 +73,7 @@ def create_app(data_dir: Path, estimator=None, web_dir: Path | None = None) -> F
         height_cm: float = Form(...),
         hand: str = Form(...),
         camera_side: str = Form("arm"),
+        capture_fps: float | None = Form(None),
     ):
         if hand not in ("R", "L"):
             raise HTTPException(422, "hand must be R or L")
@@ -80,6 +81,8 @@ def create_app(data_dir: Path, estimator=None, web_dir: Path | None = None) -> F
             raise HTTPException(422, "camera_side must be arm or glove")
         if not (100.0 <= height_cm <= 250.0):  # also rejects NaN
             raise HTTPException(422, "height_cm must be between 100 and 250")
+        if capture_fps is not None and not (1.0 <= capture_fps <= 1000.0):  # also rejects NaN
+            raise HTTPException(422, "capture_fps must be between 1 and 1000")
         ext = Path(video.filename or "").suffix.lower()
         if ext not in ALLOWED_EXTS:
             raise HTTPException(422, f"unsupported video type; allowed: {sorted(ALLOWED_EXTS)}")
@@ -99,8 +102,9 @@ def create_app(data_dir: Path, estimator=None, web_dir: Path | None = None) -> F
             "error": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "subject": {"height_cm": height_cm, "hand": hand, "camera_side": camera_side},
+            "capture_fps": capture_fps,
         })
-        background.add_task(run_job, aid, video_path, subject)
+        background.add_task(run_job, aid, video_path, subject, capture_fps)
         return {"id": aid}
 
     @app.get("/api/analyses")

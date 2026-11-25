@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import type { AnalysisResult } from "../types";
-import { ghostMarkers, phaseRects, phaseStatus } from "../render/timeline";
+import { analysisFps } from "../render/frame";
+import { PHASE_STATUS_LABEL, ghostMarkers, phaseRects, phaseStatus } from "../render/timeline";
+import type { PhaseStatus } from "../render/timeline";
 
 interface Props {
   result: AnalysisResult;
@@ -15,6 +17,13 @@ const EVENT_LABEL: Array<[keyof AnalysisResult["events"], string]> = [
   ["release", "릴리스"],
 ];
 
+const STATUS_ICON: Record<PhaseStatus, string> = { ok: "✓", warn: "▲", unevaluated: "–" };
+const STATUS_CLASS: Record<PhaseStatus, string> = {
+  ok: "status-ok",
+  warn: "status-warn",
+  unevaluated: "status-none",
+};
+
 function msDiff(actual: number, ideal: number, fps: number): string {
   const ms = Math.round(((actual - ideal) / fps) * 1000);
   return `${ms > 0 ? "+" : ""}${ms}ms`;
@@ -25,10 +34,8 @@ export default function PhaseTimeline({ result, currentFrame, onSeek }: Props) {
   const span = Math.max(meta.n_frames - 1, 1);
   const pct = (f: number) => `${(f / span) * 100}%`;
   const rects = useMemo(() => phaseRects(phases, meta.n_frames, 100), [phases, meta.n_frames]);
-  const ghosts = useMemo(
-    () => ghostMarkers(metrics, energy.peaks, meta.fps),
-    [metrics, energy.peaks, meta.fps],
-  );
+  const fps = analysisFps(meta); // frames <-> ms in capture time (slow-motion exports)
+  const ghosts = useMemo(() => ghostMarkers(metrics, energy.peaks, fps), [metrics, energy.peaks, fps]);
   const status = (name: string) => {
     const p = phases.find((x) => x.name === name)!;
     return phaseStatus(p, metrics, energy.leaks);
@@ -49,8 +56,8 @@ export default function PhaseTimeline({ result, currentFrame, onSeek }: Props) {
                 key={r.name}
                 className={`tl-phase ${st}`}
                 style={{ left: `${r.x}%`, width: `${r.w}%` }}
-                title={`${r.label} (${st === "warn" ? "점검 필요" : "양호"})`}
-                aria-label={`${r.label} 구간으로 이동 — ${st === "warn" ? "점검 필요" : "양호"}`}
+                title={`${r.label} (${PHASE_STATUS_LABEL[st]})`}
+                aria-label={`${r.label} 구간으로 이동 — ${PHASE_STATUS_LABEL[st]}`}
                 onClick={() => onSeek(p.start)}
               >
                 {r.label}
@@ -95,7 +102,7 @@ export default function PhaseTimeline({ result, currentFrame, onSeek }: Props) {
           return (
             <li key={p.name}>
               <button type="button" className="phase-btn" onClick={() => onSeek(p.start)}>
-                <span className={st === "warn" ? "status-warn" : "status-ok"}>{st === "warn" ? "▲ 점검" : "✓ 양호"}</span>{" "}
+                <span className={STATUS_CLASS[st]}>{STATUS_ICON[st]} {PHASE_STATUS_LABEL[st]}</span>{" "}
                 {p.label} <span className="muted">프레임 {p.start}–{p.end}</span>
               </button>
             </li>
@@ -106,7 +113,7 @@ export default function PhaseTimeline({ result, currentFrame, onSeek }: Props) {
         <ul className="phase-list" aria-label="타이밍 비교">
           {ghosts.map((g) => (
             <li key={g.label}>
-              {g.label} 최고속도 시점: 기준보다 <strong>{msDiff(g.actualFrame, g.idealFrame, meta.fps)}</strong>
+              {g.label} 최고속도 시점: 기준보다 <strong>{msDiff(g.actualFrame, g.idealFrame, fps)}</strong>
             </li>
           ))}
         </ul>
@@ -114,6 +121,9 @@ export default function PhaseTimeline({ result, currentFrame, onSeek }: Props) {
       <ul className="tl-legend">
         <li>
           <span className="status-warn">■</span> 노란 밑줄: 점검이 필요한 구간
+        </li>
+        <li>
+          <span className="status-none">–</span> 평가 안 됨: 점수를 낼 수 있는 지표가 없는 구간(양호하다는 뜻이 아님)
         </li>
         <li>
           <span style={{ color: "var(--energy-high)" }}>●</span> 이벤트:{" "}

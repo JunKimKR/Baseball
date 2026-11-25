@@ -13,6 +13,11 @@ export interface VideoMeta {
   height: number;
   n_frames: number;
   duration_s: number;
+  /**
+   * Frame rate of the motion (the capture fps of a slow-motion export; else the container fps):
+   * converts frame counts to milliseconds. null only when the file gave no usable fps.
+   */
+  capture_fps: number | null;
   /** Frame rate of the norms the metrics were scored against; null when nothing was scored. */
   norm_fps: number | null;
 }

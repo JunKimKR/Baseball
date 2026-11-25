@@ -98,3 +98,62 @@ def test_error_result_has_no_norm_fps(pitch, tmp_path):
     bad = Keypoints(np.full_like(kp.xy, np.nan), np.zeros_like(kp.vis))
     res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(bad, meta))
     assert res.to_dict()["meta"]["norm_fps"] is None
+
+
+def test_capture_fps_analyzes_slow_motion_export(tmp_path):
+    """A 240 fps slow-motion clip exported as a 30 fps file: every captured frame is kept but the
+    container says 30. With capture_fps=240 the analysis runs at 240; the container fps stays for
+    playback sync."""
+    kp, truth = make_pitch(fps=240)
+    meta = VideoMeta(fps=30.0, width=1080, height=1920, n_frames=kp.xy.shape[0])
+    res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(kp, meta), capture_fps=240.0)
+    codes = [w.code for w in res.warnings]
+    assert "LOW_FPS" not in codes and "TIMING_DISABLED" not in codes and "EVENT_NOT_FOUND" not in codes
+    for name in ("leg_lift_peak", "foot_plant", "mer_est", "release"):
+        assert abs(getattr(res.events, name) - getattr(truth, name)) <= 2, name
+    assert res.meta.fps == 30.0 and res.meta.capture_fps == 240.0 and res.meta.norm_fps == 240.0
+    d = res.to_dict()["meta"]
+    assert (d["fps"], d["capture_fps"], d["norm_fps"]) == (30.0, 240.0, 240.0)
+    gap = next(m for m in res.metrics if m.name == "gap_elbow_wrist_ms")
+    assert abs(gap.value - 25) <= 9  # ms in capture time, not 8x stretched playback time
+
+    plain = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(kp, meta))  # taken as a real 30 fps clip
+    assert {"LOW_FPS", "TIMING_DISABLED"} <= {w.code for w in plain.warnings}
+    assert plain.meta.capture_fps is None and plain.to_dict()["meta"]["capture_fps"] == 30.0
+
+
+def test_cli_capture_fps(pitch, tmp_path):
+    kp, meta = pitch
+    slowmo = VideoMeta(fps=30.0, width=meta.width, height=meta.height, n_frames=meta.n_frames)
+    out = tmp_path / "r.json"
+    rc = main(["analyze", str(tmp_path / "x.mp4"), "--height", "185", "--hand", "R",
+               "--capture-fps", "240", "--out", str(out)], estimator=FakeEstimator(kp, slowmo))
+    assert rc == 0
+    m = json.loads(out.read_text())["meta"]
+    assert (m["fps"], m["capture_fps"]) == (30.0, 240.0)
+    for bad in ("0", "1001", "abc"):
+        with pytest.raises(SystemExit):
+            main(["analyze", str(tmp_path / "x.mp4"), "--height", "185", "--hand", "R",
+                  "--capture-fps", bad, "--out", str(out)], estimator=FakeEstimator(kp, slowmo))
+
+
+def test_analyze_warns_on_uncertain_scale(tmp_path):
+    from pitchcoach.joints import idx
+
+    kp, _ = make_pitch(fps=240)
+    ank = (kp.xy[:40, idx("left_ankle")] + kp.xy[:40, idx("right_ankle")]) / 2
+    kp.xy[:40, idx("nose")] = ank + 0.8 * (kp.xy[:40, idx("nose")] - ank)  # bent over at the start
+    meta = VideoMeta(fps=240.0, width=1080, height=1920, n_frames=kp.xy.shape[0])
+    res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(kp, meta))
+    w = [w for w in res.warnings if w.code == "SCALE_UNCERTAIN"]
+    assert len(w) == 1 and w[0].severity == "warn" and "똑바로 선 자세" in w[0].message
+    by = {m.name: m for m in res.metrics}
+    for n in ("stride_length_pct_height", "pelvis_peak_speed_ms", "shoulder_peak_speed_ms",
+              "wrist_peak_speed_ms"):
+        assert by[n].confidence == "low" and by[n].score is None, n
+    assert by["trunk_flexion_br_deg"].score is not None  # angles are scale-free
+
+
+def test_analyze_no_scale_warning_on_upright_start(pitch, tmp_path):
+    res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(*pitch))
+    assert "SCALE_UNCERTAIN" not in [w.code for w in res.warnings]

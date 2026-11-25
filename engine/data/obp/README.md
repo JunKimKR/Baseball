@@ -47,9 +47,17 @@ Changes made to the data:
 - event detection and metric computation by pitchcoach
 - aggregation into a mean and sd per metric
 
-`LICENSE-DATA.md` adds one restriction: anyone employed by, associated with, or a significant
-shareholder of a professional sports organization or financial analysis firm may not use the
-data at all. This project is personal and non-commercial.
+**Professional-organization exclusion.** `LICENSE-DATA.md` adds one restriction on top of
+CC BY-NC-SA 4.0: any employee or contractor employed by, associated with, or a significant
+shareholder of a professional sports organization or financial analysis firm is forbidden to use
+the OBP data for any use whatsoever without a specific written commercial (paid) license.
+- Non-commercial or personal use does not lift it.
+- The packaged norm files are derived from the OBP data, so it applies to them too. Such a user
+  needs a paid OBP license (Contact Us at https://openbiomechanics.org) or norms from another
+  source in the same format before using pitchcoach's scores.
+- This project is personal and non-commercial; the spec's target users (professional pitchers
+  and their coaches) are exactly the people this exclusion covers when they belong to a
+  professional organization.
 
 ## What the data contain
 

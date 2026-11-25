@@ -4,6 +4,8 @@ export interface UploadOptions {
   heightCm: number;
   hand: Hand;
   cameraSide: CameraSide;
+  /** Frame rate the clip was shot at, when the file says otherwise (slow-motion export). */
+  captureFps?: number;
 }
 
 /** Turn a FastAPI error body (`detail` string or validation list) into a message. */
@@ -35,6 +37,7 @@ export async function uploadVideo(file: File, opts: UploadOptions): Promise<stri
   fd.append("height_cm", String(opts.heightCm));
   fd.append("hand", opts.hand);
   fd.append("camera_side", opts.cameraSide);
+  if (opts.captureFps !== undefined) fd.append("capture_fps", String(opts.captureFps));
   const res = await fetch("/api/analyses", { method: "POST", body: fd });
   if (!res.ok) throw new Error(await errorMessage(res));
   const body = await res.json();

@@ -1,4 +1,4 @@
-import type { Confidence, Leak } from "../types";
+import type { Confidence, Leak, Metric } from "../types";
 import type { Pt, Segment } from "./skeleton";
 
 export const LEAK_COLOR = "#ff3b30";
@@ -28,6 +28,30 @@ export function segmentStyle(intensity: number, confidence: Confidence, leaking:
     width: 2 + 10 * t,
     alpha: low ? 0.35 : 1,
     dash: low ? [6, 4] : [],
+  };
+}
+
+/**
+ * The metric behind each drawn energy column: the overlay shows these linear speeds (energy.py
+ * normalizes the same signals), so their confidence, not the segment score's, sets the
+ * dimming. The pelvis column is a rotation proxy and always low.
+ */
+export const OVERLAY_SIGNAL: Record<Segment, string | null> = {
+  legs: "pelvis_peak_speed_ms",
+  pelvis: null,
+  trunk: "shoulder_peak_speed_ms",
+  arm: "wrist_peak_speed_ms",
+};
+
+/** Confidence per drawn column; a missing metric counts as low. */
+export function overlayConfidence(metrics: Metric[]): Record<Segment, Confidence> {
+  const byName = new Map(metrics.map((m) => [m.name, m.confidence]));
+  const at = (name: string | null): Confidence => (name === null ? "low" : byName.get(name) ?? "low");
+  return {
+    legs: at(OVERLAY_SIGNAL.legs),
+    pelvis: at(OVERLAY_SIGNAL.pelvis),
+    trunk: at(OVERLAY_SIGNAL.trunk),
+    arm: at(OVERLAY_SIGNAL.arm),
   };
 }
 

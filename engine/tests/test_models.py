@@ -81,3 +81,14 @@ def test_self_test_source_serialized():
     res = AnalysisResult(meta=VideoMeta(30.0, 10, 10, 3), subject=Subject(180.0, "R", "arm"),
                          findings=[Finding("i", "t", "e", [Cause("c", "c", st)])])
     assert res.to_dict()["findings"][0]["causes"][0]["self_test"]["source"] == "Src, 2020"
+
+
+def test_meta_capture_fps_defaults_to_container_fps():
+    meta = VideoMeta(fps=30.0, width=10, height=10, n_frames=60)
+    assert meta.analysis_fps == 30.0
+    res = AnalysisResult(meta=meta, subject=Subject(180.0, "R", "arm"))
+    assert res.to_dict()["meta"]["capture_fps"] == 30.0
+    slowmo = VideoMeta(fps=30.0, width=10, height=10, n_frames=60, capture_fps=240.0)
+    assert slowmo.analysis_fps == 240.0 and slowmo.duration_s == 2.0  # playback duration
+    d = AnalysisResult(meta=slowmo, subject=Subject(180.0, "R", "arm")).to_dict()["meta"]
+    assert d["fps"] == 30.0 and d["capture_fps"] == 240.0 and d["norm_fps"] is None
