@@ -110,7 +110,7 @@ def diagnose(metrics: list[Metric], leaks: list[Leak], rules: list[dict]) -> lis
         for c in rule.get("causes", []):
             st = c["self_test"]
             causes.append(Cause(
-                id=c["id"], title=c["title"],
+                id=c["id"], title=c["title"], source=c["cause_source"],
                 self_test=SelfTest(id=st["id"], instruction=st["instruction"],
                                    options=[dict(o) for o in st["options"]],
                                    implies_cause_on=st["implies_cause_on"],

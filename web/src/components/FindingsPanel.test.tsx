@@ -42,6 +42,16 @@ describe("FindingsPanel", () => {
     expect(screen.getByText(r.findings[0].title)).toBeInTheDocument();
   });
 
+  it("shows each cause's evidence source", () => {
+    const f = r.findings.find((x) => x.causes.length > 0)!;
+    render(<FindingsPanel analysisId="id1" findings={[f]} metrics={r.metrics} />);
+    for (const c of f.causes) {
+      expect(c.source.trim()).not.toBe("");
+      expect(screen.getAllByText(c.source).length).toBeGreaterThan(0);
+    }
+    expect(screen.getAllByText("원인 근거").length).toBe(f.causes.length);
+  });
+
   it("explains empty causes", () => {
     const f = r.findings.find((x) => x.causes.length === 0)!;
     render(<FindingsPanel analysisId="id1" findings={[f]} metrics={r.metrics} />);

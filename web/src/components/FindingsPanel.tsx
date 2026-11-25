@@ -24,10 +24,10 @@ function saveAnswers(analysisId: string, answers: Answers): void {
   }
 }
 
-function Source({ text }: { text: string }) {
+function Source({ text, label = "출처" }: { text: string; label?: string }) {
   return (
     <details className="source">
-      <summary>출처</summary>
+      <summary>{label}</summary>
       <p className="src">{text}</p>
     </details>
   );
@@ -55,6 +55,7 @@ function CauseCard({
         {cause.title}
         <span className="badge">{state === "likely" ? "해당 가능성 높음" : state === "dim" ? "가능성 낮음" : "가능성"}</span>
       </h4>
+      <Source text={cause.source} label="원인 근거" />
       <fieldset className="selftest">
         <legend>30초 자가 테스트: {st.instruction}</legend>
         {st.options.map((o) => (

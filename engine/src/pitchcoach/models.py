@@ -144,6 +144,7 @@ class Exercise:
 class Cause:
     id: str
     title: str
+    source: str  # evidence linking the cause to the issue (rules_v1.yaml cause_source)
     self_test: SelfTest
     exercises: list[Exercise] = field(default_factory=list)
 

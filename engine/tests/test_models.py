@@ -75,12 +75,15 @@ def test_result_to_dict_schema():
     json.dumps(d, allow_nan=False)
 
 
-def test_self_test_source_serialized():
+def test_self_test_and_cause_source_serialized():
     from pitchcoach.models import (AnalysisResult, Cause, Finding, SelfTest, Subject, VideoMeta)
     st = SelfTest("t", "do", [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "b", "Src, 2020")
     res = AnalysisResult(meta=VideoMeta(30.0, 10, 10, 3), subject=Subject(180.0, "R", "arm"),
-                         findings=[Finding("i", "t", "e", [Cause("c", "c", st)])])
-    assert res.to_dict()["findings"][0]["causes"][0]["self_test"]["source"] == "Src, 2020"
+                         findings=[Finding("i", "t", "e", [Cause("c", "c", "Cause src, 2021", st)])])
+    cause = res.to_dict()["findings"][0]["causes"][0]
+    assert cause["self_test"]["source"] == "Src, 2020"
+    assert cause["source"] == "Cause src, 2021"
+    assert set(cause) == {"id", "title", "source", "self_test", "exercises"}
 
 
 def test_meta_capture_fps_defaults_to_container_fps():

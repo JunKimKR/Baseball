@@ -6,6 +6,7 @@ import numpy as np
 
 from .joints import idx, side_joints
 from .kinematics import angular_velocity, peak_frames, rotation_proxy, speed  # noqa: F401
+from .metrics import MIN_TIMING_FPS
 from .models import Leak, Metric, Norm, SegmentScore, Subject
 
 SEGMENTS = ["legs", "pelvis", "trunk", "arm"]
@@ -17,6 +18,9 @@ _COLUMN_NORM = {"legs": "pelvis_peak_speed_ms", "trunk": "shoulder_peak_speed_ms
 # (peak key, segment, label) in the proximal-to-distal order
 _ORDER = [("pelvis_center", "legs", "골반 중심"), ("shoulder_center", "trunk", "몸통"),
           ("elbow", "arm", "팔꿈치"), ("wrist", "arm", "손목")]
+# gap metric between each peak of _ORDER and the next one
+_ORDER_GAPS = ["gap_pelvis_shoulder_ms", "gap_shoulder_elbow_ms", "gap_elbow_wrist_ms"]
+OUT_OF_ORDER_Z = -1.0
 _SPEED_DROP = [("pelvis_peak_speed_ms", "legs", "pelvis_center", "골반 최고 속도"),
                ("shoulder_peak_speed_ms", "trunk", "shoulder_center", "몸통 최고 속도"),
                ("wrist_peak_speed_ms", "arm", "wrist", "손목 최고 속도")]
@@ -45,16 +49,21 @@ def energy_intensity(kp, fps: float, ppm: float, subject: Subject, direction: in
 
 
 def detect_leaks(metrics: list[Metric], peaks: dict[str, int | None], fps: float) -> list[Leak]:
+    """Energy leaks. out_of_order: a peak comes after the next distal one AND the matching gap
+    metric is unusually short against the norms (z < -1; in 2D the order flips in many reference
+    pitchers, e.g. pelvis after shoulder), never below 60 fps. speed_drop: a peak speed z < -1."""
     leaks: list[Leak] = []
-    if fps >= 60:
-        for (ka, seg, name), (kb, _, nxt) in zip(_ORDER, _ORDER[1:]):
-            a, b = peaks.get(ka), peaks.get(kb)
+    by_name = {m.name: m for m in metrics}
+    if fps >= MIN_TIMING_FPS:
+        for (ka, seg, name), (kb, _, nxt), gap_name in zip(_ORDER, _ORDER[1:], _ORDER_GAPS):
+            a, b, gap = peaks.get(ka), peaks.get(kb), by_name.get(gap_name)
             if a is None or b is None or a <= b:
+                continue
+            if gap is None or gap.z is None or not gap.z < OUT_OF_ORDER_Z:
                 continue
             ms = (a - b) * 1000.0 / fps
             leaks.append(Leak(seg, int(a), "out_of_order", min(1.0, ms / 30.0),
                               f"{name} 최고 속도가 {nxt}보다 {ms:.0f}ms 늦습니다"))
-    by_name = {m.name: m for m in metrics}
     for metric, seg, peak_key, label in _SPEED_DROP:
         m, frame = by_name.get(metric), peaks.get(peak_key)
         if m is None or m.z is None or frame is None or not m.z < -1:

@@ -12,6 +12,7 @@ from scipy.signal import find_peaks
 
 from .joints import side_joints
 from .kinematics import speed
+from .metrics import MIN_TIMING_FPS
 from .models import AnalysisWarning, Events, Keypoints, Phase, Subject
 
 MIN_RELEASE_SPEED_MS = 3.0   # no release unless the wrist reaches this speed
@@ -41,10 +42,11 @@ def detect_events(
     leg_lift_peak = foot_plant = mer_est = None
 
     release, another_pitch = _release(speed(xy[:, sj["throw_wrist"]], fps, ppm), fps)
-    if another_pitch:
+    # below 60 fps smoothing flattens the release peak, so walking after the pitch can pass the
+    # 0.5 x max test: the warning would be a guess there
+    if another_pitch and fps >= MIN_TIMING_FPS:
         warnings.append(AnalysisWarning(
-            "MULTIPLE_PITCHES", "warn",
-            "영상에 투구가 여러 번 있습니다. 첫 번째 투구만 분석합니다. 한 번의 투구만 담기도록 촬영하세요."))
+            "MULTIPLE_PITCHES", "warn", "두 번째 투구로 보이는 동작이 있어 첫 투구만 분석했습니다."))
     if release is not None:
         foot_plant = _foot_plant(speed(xy[:, sj["lead_ankle"]], fps, ppm), release, fps)
     if foot_plant is not None:

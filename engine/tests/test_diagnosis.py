@@ -36,8 +36,30 @@ RULES = [
 
 def test_rules_file_valid():
     rules = load_rules()
-    assert len(rules) >= 6
+    assert len(rules) >= 7
     assert validate_rules(rules) == []
+
+
+def test_shoulder_elbow_order_issue():
+    """Evidence only: no cause has a verified source yet, so causes stay empty."""
+    rules = load_rules()
+    (rule,) = [r for r in rules if r["id"] == "shoulder_elbow_order"]
+    assert rule["causes"] == []
+    leak = Leak("trunk", 120, "out_of_order", 0.4, "몸통 최고 속도가 팔꿈치보다 12ms 늦습니다")
+    gap = _m("gap_shoulder_elbow_ms", -2.4, value=40.0, unit="ms")
+    out = {f.issue_id: f for f in diagnose([gap], [leak], rules)}
+    f = out["shoulder_elbow_order"]
+    assert f.causes == [] and "12ms" in f.evidence and "40.0ms" in f.evidence and "-2.4" in f.evidence
+    # the gap metric alone (shorter than the reference by > 1 sd) also triggers it
+    assert "shoulder_elbow_order" in {f.issue_id for f in diagnose([_m("gap_shoulder_elbow_ms", -1.2, 60.0, "ms")], [], rules)}
+    assert "shoulder_elbow_order" not in {f.issue_id for f in diagnose([_m("gap_shoulder_elbow_ms", -0.8, 70.0, "ms")], [], rules)}
+
+
+def test_diagnose_exports_cause_source():
+    out = diagnose([_m("stride_length_pct_height", -1.5)], [], RULES)
+    assert out[0].causes[0].source == "Author et al., 2020"
+    real = diagnose([_m("stride_length_pct_height", -1.5)], [], load_rules())
+    assert all(c.source.strip() for c in real[0].causes)
 
 
 def test_diagnose_triggers_on_z():

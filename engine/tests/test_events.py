@@ -50,6 +50,18 @@ def test_events_first_pitch_only():
     events, warnings = detect_events(kp, 240.0, PPM, _subject())
     _assert_close(events, truth)
     assert [(w.code, w.severity) for w in warnings] == [("MULTIPLE_PITCHES", "warn")]
+    assert warnings[0].message == "두 번째 투구로 보이는 동작이 있어 첫 투구만 분석했습니다."
+
+
+def test_no_multiple_pitches_warning_below_60fps():
+    """Below 60 fps the release peak is smoothed down, so after-pitch motion can pass the
+    0.5 x max test; the warning would be a guess."""
+    kp, _ = make_pitch(fps=30, n_pitches=2)
+    _, warnings = detect_events(kp, 30.0, PPM, _subject())
+    assert "MULTIPLE_PITCHES" not in _codes(warnings)
+    kp, _ = make_pitch(fps=60, n_pitches=2)
+    _, warnings = detect_events(kp, 60.0, PPM, _subject())
+    assert "MULTIPLE_PITCHES" in _codes(warnings)
 
 
 def test_events_walking_after_pitch_no_multiple():

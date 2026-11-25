@@ -35,7 +35,7 @@ const KEYS = {
   leak: keysOf<Leak>({ segment: true, frame: true, kind: true, severity: true, message: true }),
   peaks: keysOf<EnergyPeaks>({ pelvis_center: true, shoulder_center: true, elbow: true, wrist: true }),
   finding: keysOf<Finding>({ issue_id: true, title: true, evidence: true, causes: true }),
-  cause: keysOf<Cause>({ id: true, title: true, self_test: true, exercises: true }),
+  cause: keysOf<Cause>({ id: true, title: true, source: true, self_test: true, exercises: true }),
   selfTest: keysOf<SelfTest>({
     id: true, instruction: true, options: true, implies_cause_on: true, source: true,
   }),

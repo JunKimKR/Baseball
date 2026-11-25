@@ -129,6 +129,8 @@ export interface Exercise {
 export interface Cause {
   id: string;
   title: string;
+  /** Evidence linking the cause to the issue (rules_v1.yaml cause_source). */
+  source: string;
   self_test: SelfTest;
   exercises: Exercise[];
 }
