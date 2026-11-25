@@ -5,7 +5,7 @@ engine/data/obp/repo/
 engine/data/obp/raw/
 web/node_modules/
 web/dist/
-data/
+/data/
 __pycache__/
 *.egg-info/
 .pytest_cache/
