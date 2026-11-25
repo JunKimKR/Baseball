@@ -62,7 +62,42 @@ def test_comment_rows_ignored_and_no_labels(tmp_path):
 
 def test_main_exit_code(tmp_path, monkeypatch):
     p = write(tmp_path, ["a.mp4,120,180,R,100,150,200"])
-    monkeypatch.setattr(ev, "run_analysis", lambda rows, base: {"a.mp4": Events(100, 150, None, 200)})
+    monkeypatch.setattr(ev, "run_analysis", lambda rows, base: ({"a.mp4": Events(100, 150, None, 200)}, {}))
     assert ev.main([str(p)]) == 0
-    monkeypatch.setattr(ev, "run_analysis", lambda rows, base: {"a.mp4": Events(0, 0, None, 0)})
+    monkeypatch.setattr(ev, "run_analysis", lambda rows, base: ({"a.mp4": Events(0, 0, None, 0)}, {}))
     assert ev.main([str(p)]) == 1
+
+
+def test_read_labels_with_bom(tmp_path):
+    """Excel saves "UTF-8 CSV" with a byte-order mark; the header must still read as `video`."""
+    p = tmp_path / "labels.csv"
+    p.write_bytes(("﻿" + HEADER + "a.mp4,120,180,R,100,150,200\n").encode("utf-8"))
+    (row,) = ev.read_labels(p)
+    assert row["video"] == "a.mp4" and row["labels"]["release"] == 200
+
+
+def test_run_analysis_records_unreadable_clip_and_continues(tmp_path, monkeypatch):
+    import pitchcoach.analyze as analyze_mod
+
+    def fake_analyze(path, subject):
+        if path.name == "bad.mp4":
+            raise ValueError(f"cannot open video: {path}")
+        return type("R", (), {"events": Events(100, 150, None, 200)})()
+
+    monkeypatch.setattr(analyze_mod, "analyze", fake_analyze)
+    rows = ev.read_labels(write(tmp_path, ["bad.mp4,120,180,R,100,150,200",
+                                           "good.mp4,120,180,R,100,150,200"]))
+    results, errors = ev.run_analysis(rows, tmp_path)
+    assert list(errors) == ["bad.mp4"] and "cannot open video" in errors["bad.mp4"]
+    assert results["bad.mp4"] == Events() and results["good.mp4"].release == 200
+
+
+def test_main_reports_error_rows_as_misses(tmp_path, monkeypatch, capsys):
+    p = write(tmp_path, ["bad.mp4,120,180,R,100,150,200", "good.mp4,120,180,R,100,150,200"])
+    monkeypatch.setattr(ev, "run_analysis", lambda rows, base: (
+        {"bad.mp4": Events(), "good.mp4": Events(100, 150, None, 200)},
+        {"bad.mp4": "cannot open video"}))
+    assert ev.main([str(p)]) == 1  # 3 of 6 labeled events hit
+    out = capsys.readouterr().out
+    assert "bad.mp4" in out and "cannot open video" in out and "1 clip" in out
+    assert "3/6" in out.replace(" ", "")

@@ -4,7 +4,9 @@ Usage: .venv/bin/python engine/scripts/eval_events.py labels.csv
 
 Label CSV columns: video,fps,height_cm,hand,leg_lift_peak,foot_plant,release (frame numbers).
 Relative video paths resolve against the CSV's directory. An empty label cell means the event is
-not labeled (excluded from that event's denominator); a detected None counts as a miss.
+not labeled (excluded from that event's denominator); a detected None counts as a miss. A clip
+that cannot be analyzed (missing, unreadable) is reported and all its labeled events count as
+misses; the run goes on. The CSV may start with a UTF-8 byte-order mark (Excel).
 Tolerance = 2 * fps / 120 frames. Exit code 0 iff the overall hit ratio >= 0.80.
 """
 
@@ -28,7 +30,7 @@ def tolerance_frames(fps: float) -> float:
 
 def read_labels(labels_csv: Path) -> list[dict]:
     rows: list[dict] = []
-    with open(labels_csv, newline="", encoding="utf-8") as f:
+    with open(labels_csv, newline="", encoding="utf-8-sig") as f:
         lines = [ln for ln in f if ln.strip() and not ln.lstrip().startswith("#")]
     for r in csv.DictReader(lines):
         labels = {n: (int(r[n]) if (r.get(n) or "").strip() else None) for n in EVENT_NAMES}
@@ -60,19 +62,26 @@ def evaluate(labels_csv: Path, results: dict[str, Events]) -> dict:
     return {"per_event": {n: finish(c) for n, c in counts.items()}, "overall": finish(overall)}
 
 
-def run_analysis(rows: list[dict], base: Path) -> dict[str, Events]:
+def run_analysis(rows: list[dict], base: Path) -> tuple[dict[str, Events], dict[str, str]]:
+    """(events per clip, error message per clip that could not be analyzed). A failed clip gets
+    empty Events, so its labeled events count as misses."""
     from pitchcoach.analyze import analyze  # real MediaPipe; imported lazily
     from pitchcoach.models import Subject
 
     results: dict[str, Events] = {}
+    errors: dict[str, str] = {}
     for row in rows:
         path = Path(row["video"])
         if not path.is_absolute():
             path = base / path
         subject = Subject(height_cm=row["height_cm"], hand=row["hand"], camera_side="arm")
         print(f"analyzing {path} ...", file=sys.stderr)
-        results[row["video"]] = analyze(path, subject).events
-    return results
+        try:
+            results[row["video"]] = analyze(path, subject).events
+        except Exception as exc:  # one bad clip must not end the evaluation
+            results[row["video"]] = Events()
+            errors[row["video"]] = f"{type(exc).__name__}: {exc}"
+    return results, errors
 
 
 def _fmt(c: dict) -> str:
@@ -85,8 +94,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("labels", type=Path)
     args = ap.parse_args(argv)
     rows = read_labels(args.labels)
-    results = run_analysis(rows, args.labels.resolve().parent)
+    results, errors = run_analysis(rows, args.labels.resolve().parent)
     out = evaluate(args.labels, results)
+    if errors:
+        print(f"ERROR: {len(errors)} clip(s) could not be analyzed; their labeled events count as misses:")
+        for video, message in errors.items():
+            print(f"  {video}: {message}")
     print(f"{'event':<16}{'hit/total':>10}{'ratio':>8}   (tolerance = 2 x fps / 120 frames)")
     for name, c in out["per_event"].items():
         print(f"{name:<16}{_fmt(c)}")

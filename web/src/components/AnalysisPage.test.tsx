@@ -51,6 +51,18 @@ describe("AnalysisPage", () => {
     expect(screen.getByText("트레이닝 코치와 상의 후 적용하세요.")).toBeInTheDocument();
   });
 
+  it("renders repeated warning codes without key collisions", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const w = (message: string) => ({ code: "EVENT_NOT_FOUND", severity: "warn" as const, message });
+    const twice = { ...r, warnings: [w("앞발 착지 없음"), w("릴리스 없음")] };
+    impl = (_id, onUpdate) => (onUpdate(done(twice)), () => {});
+    render(<AnalysisPage id="x" />);
+    expect(screen.getByText("앞발 착지 없음")).toBeInTheDocument();
+    expect(screen.getByText("릴리스 없음")).toBeInTheDocument();
+    expect(spy.mock.calls.some((c) => String(c[0]).includes("same key"))).toBe(false);
+    spy.mockRestore();
+  });
+
   it("lists errors first, then warnings, then info", () => {
     const w = (code: string, severity: "info" | "warn" | "error") => ({ code, severity, message: `m-${code}` });
     const mixed = { ...r, warnings: [w("I", "info"), w("W", "warn"), w("E", "error")] };

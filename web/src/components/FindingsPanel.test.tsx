@@ -59,7 +59,7 @@ describe("FindingsPanel", () => {
     expect(screen.getByText("근거가 확인된 원인 정보가 아직 없습니다.")).toBeInTheDocument();
   });
 
-  it("narrows causes after self-test", async () => {
+  it("narrows a cause only by its own self-test answer", async () => {
     const user = userEvent.setup();
     render(<FindingsPanel analysisId="id9" findings={[twoCause()]} metrics={r.metrics} />);
     // nothing chosen: every cause listed as possible, with exercises
@@ -67,17 +67,29 @@ describe("FindingsPanel", () => {
     expect(screen.getByText("운동A")).toBeInTheDocument();
     expect(screen.getByText("운동B")).toBeInTheDocument();
 
+    // A's test says A applies; B's test is unanswered, so B is not demoted
     await user.click(screen.getByLabelText("a 해당"));
+    expect(screen.getByText("해당 가능성 높음")).toBeInTheDocument();
+    expect(screen.getAllByText("가능성")).toHaveLength(1);
     expect(screen.getByText("운동A")).toBeInTheDocument();
-    expect(screen.queryByText("운동B")).not.toBeInTheDocument();
+    expect(screen.getByText("운동B")).toBeInTheDocument();
+    expect(screen.queryByText(/가능성 낮음/)).not.toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("selftest:id9")!)).toEqual({ st_a: "yes" });
+
+    // B's own answer says it does not apply: only now is it marked and folded
+    await user.click(screen.getByLabelText("b 아님"));
+    expect(screen.getByText("자가 테스트 결과상 덜 해당")).toBeInTheDocument();
+    expect(screen.queryByText("운동B")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "운동 제안 펼치기" }));
+    expect(screen.getByText("운동B")).toBeInTheDocument();
   });
 
   it("restores answers from localStorage", () => {
-    localStorage.setItem("selftest:id9", JSON.stringify({ st_b: "yes" }));
+    localStorage.setItem("selftest:id9", JSON.stringify({ st_b: "yes", st_a: "no" }));
     render(<FindingsPanel analysisId="id9" findings={[twoCause()]} metrics={r.metrics} />);
     expect(screen.getByText("운동B")).toBeInTheDocument();
     expect(screen.queryByText("운동A")).not.toBeInTheDocument();
+    expect(screen.getByText("자가 테스트 결과상 덜 해당")).toBeInTheDocument();
   });
 
   it("shares one answer across findings with the same self-test, in separate radio groups", async () => {

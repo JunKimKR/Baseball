@@ -33,8 +33,8 @@ function Warnings({ result }: { result: AnalysisResult }) {
     <section className="card" aria-label="경고">
       <h2>확인할 점</h2>
       <ul className="warn-list">
-        {sorted.map((w) => (
-          <li key={w.code} className={`warn-item ${w.severity}`}>
+        {sorted.map((w, i) => (
+          <li key={`${w.code}-${i}`} className={`warn-item ${w.severity}`}>
             <strong>{sev[w.severity]}</strong> {w.message}
           </li>
         ))}

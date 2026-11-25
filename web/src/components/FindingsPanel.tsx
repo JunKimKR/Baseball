@@ -33,27 +33,43 @@ function Source({ text, label = "출처" }: { text: string; label?: string }) {
   );
 }
 
+/**
+ * A cause is judged only by its own self-test: unanswered stays "possible" (spec: don't assert
+ * unless narrowed), the answer that implies it makes it "likely", any other answer "less".
+ */
+type CauseState = "possible" | "likely" | "less";
+
+const STATE_LABEL: Record<CauseState, string> = {
+  possible: "가능성",
+  likely: "해당 가능성 높음",
+  less: "자가 테스트 결과상 덜 해당",
+};
+
+export function causeState(cause: Cause, answer: string | undefined): CauseState {
+  if (answer === undefined) return "possible";
+  return answer === cause.self_test.implies_cause_on ? "likely" : "less";
+}
+
 function CauseCard({
   cause,
   answer,
   groupId,
-  state,
   onAnswer,
 }: {
   cause: Cause;
   answer: string | undefined;
   groupId: string;
-  state: "possible" | "likely" | "dim";
   onAnswer: (optionId: string) => void;
 }) {
   const [forceOpen, setForceOpen] = useState(false);
-  const open = state !== "dim" || forceOpen;
+  const state = causeState(cause, answer);
+  const open = state !== "less" || forceOpen;
   const st = cause.self_test;
   return (
-    <div className={`cause${state === "dim" ? " dim" : ""}`}>
+    <div className={`cause${state === "less" ? " dim" : ""}`}>
       <h4>
         {cause.title}
-        <span className="badge">{state === "likely" ? "해당 가능성 높음" : state === "dim" ? "가능성 낮음" : "가능성"}</span>
+        <span className="badge">{STATE_LABEL[state]}</span>
       </h4>
       <Source text={cause.source} label="원인 근거" />
       <fieldset className="selftest">
@@ -123,31 +139,25 @@ export default function FindingsPanel({
         ) : (
           <p className="muted">뚜렷한 문제 지점이 발견되지 않았습니다.</p>
         ))}
-      {findings.map((f) => {
-        const likely = new Set(
-          f.causes.filter((c) => answers[c.self_test.id] === c.self_test.implies_cause_on).map((c) => c.id),
-        );
-        return (
-          <article className="finding" key={f.issue_id}>
-            <h3>{f.title}</h3>
-            <p>{f.evidence}</p>
-            {f.causes.length === 0 ? (
-              <p className="muted">근거가 확인된 원인 정보가 아직 없습니다.</p>
-            ) : (
-              f.causes.map((c) => (
-                <CauseCard
-                  key={c.id}
-                  cause={c}
-                  answer={answers[c.self_test.id]}
-                  groupId={f.issue_id}
-                  state={likely.size === 0 ? "possible" : likely.has(c.id) ? "likely" : "dim"}
-                  onAnswer={(o) => answer(c.self_test.id, o)}
-                />
-              ))
-            )}
-          </article>
-        );
-      })}
+      {findings.map((f) => (
+        <article className="finding" key={f.issue_id}>
+          <h3>{f.title}</h3>
+          <p>{f.evidence}</p>
+          {f.causes.length === 0 ? (
+            <p className="muted">근거가 확인된 원인 정보가 아직 없습니다.</p>
+          ) : (
+            f.causes.map((c) => (
+              <CauseCard
+                key={c.id}
+                cause={c}
+                answer={answers[c.self_test.id]}
+                groupId={f.issue_id}
+                onAnswer={(o) => answer(c.self_test.id, o)}
+              />
+            ))
+          )}
+        </article>
+      ))}
     </section>
   );
 }
