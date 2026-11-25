@@ -118,6 +118,7 @@ class SelfTest:
     instruction: str
     options: list[dict[str, str]]  # [{"id": ..., "label": ...}, ...]
     implies_cause_on: str
+    source: str
 
 
 @dataclass

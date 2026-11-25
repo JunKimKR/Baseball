@@ -73,10 +73,26 @@ def test_diagnose_sorted_by_severity():
     rules = RULES + [_rule("arm_order", [{"leak_segment": "arm", "leak_kind": "out_of_order"}])]
     metrics = [_m("stride_length_pct_height", -1.6), _m("gap_elbow_wrist_ms", 3.2)]
     leaks = [Leak("arm", 100, "out_of_order", 0.3, "m"), Leak("legs", 100, "out_of_order", 0.9, "m")]
+    # leak severity x3: legs 2.7, arm 0.9 -> gap 3.2 > order 2.7 > stride 1.6 > arm_order 0.9
     out = diagnose(metrics, leaks, rules)
-    assert [f.issue_id for f in out] == ["gap", "stride", "order", "arm_order"]
-    out = diagnose([_m("gap_elbow_wrist_ms", 1.0 + 1.5)], leaks, rules)
-    assert [f.issue_id for f in out] == ["gap", "order", "arm_order"]
+    assert [f.issue_id for f in out] == ["gap", "order", "stride", "arm_order"]
+
+
+def test_leak_severity_on_z_scale():
+    # leak severity 0.8 (= 2.4 on the z scale) outranks a metric with |z| = 1.5
+    leak = Leak("legs", 100, "out_of_order", 0.8, "m")
+    out = diagnose([_m("stride_length_pct_height", -1.5)], [leak], RULES)
+    assert [f.issue_id for f in out] == ["order", "stride"]
+    # ... but not a metric with |z| = 2.6
+    out = diagnose([_m("gap_elbow_wrist_ms", 2.6)], [leak], RULES)
+    assert [f.issue_id for f in out] == ["gap", "order"]
+
+
+def test_diagnose_emits_self_test_source():
+    out = diagnose([_m("stride_length_pct_height", -1.5)], [], RULES)
+    assert out[0].causes[0].self_test.source.startswith("Author et al.")
+    d = out[0].causes[0].self_test
+    assert d.source and d.id == "stride_t"
 
 
 def test_validate_rules_catches_missing_source():

@@ -11,6 +11,8 @@ from .metrics import METRIC_DEFS
 from .models import Cause, Exercise, Finding, Leak, Metric, SelfTest
 
 _METRIC_OPS = ("z_lt", "z_gt", "abs_z_gt")
+# leak.severity is |z|/3 (speed_drop) or ms/30 (out_of_order); x3 puts it on the |z| scale
+_LEAK_SCALE = 3.0
 
 
 def load_rules(path: str | Path | None = None) -> list[dict]:
@@ -74,7 +76,7 @@ def _match(rule: dict, by_name: dict[str, Metric], leaks: list[Leak]):
         else:
             for lk in leaks:
                 if lk.segment == cond.get("leak_segment") and lk.kind == cond.get("leak_kind"):
-                    severity = max(severity, lk.severity)
+                    severity = max(severity, lk.severity * _LEAK_SCALE)
                     lhits.append(lk)
     return (severity, mhits, lhits) if mhits or lhits else None
 
@@ -109,7 +111,8 @@ def diagnose(metrics: list[Metric], leaks: list[Leak], rules: list[dict]) -> lis
                 id=c["id"], title=c["title"],
                 self_test=SelfTest(id=st["id"], instruction=st["instruction"],
                                    options=[dict(o) for o in st["options"]],
-                                   implies_cause_on=st["implies_cause_on"]),
+                                   implies_cause_on=st["implies_cause_on"],
+                                   source=st["source"]),
                 exercises=[Exercise(id=e["id"], name=e["name"], sets_reps=e["sets_reps"],
                                     description=e["description"], source=e["source"])
                            for e in c.get("exercises", [])]))

@@ -73,3 +73,11 @@ def test_result_to_dict_schema():
     assert set(d["energy"]) == {"segments", "intensity", "leaks", "peaks"}
     assert set(d["events"]) == {"leg_lift_peak", "foot_plant", "mer_est", "release"}
     json.dumps(d, allow_nan=False)
+
+
+def test_self_test_source_serialized():
+    from pitchcoach.models import (AnalysisResult, Cause, Finding, SelfTest, Subject, VideoMeta)
+    st = SelfTest("t", "do", [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}], "b", "Src, 2020")
+    res = AnalysisResult(meta=VideoMeta(30.0, 10, 10, 3), subject=Subject(180.0, "R", "arm"),
+                         findings=[Finding("i", "t", "e", [Cause("c", "c", st)])])
+    assert res.to_dict()["findings"][0]["causes"][0]["self_test"]["source"] == "Src, 2020"

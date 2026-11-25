@@ -2,19 +2,13 @@
 # 모든 운동/자가 테스트의 source는 PubMed에서 메타데이터를 직접 확인한 문헌이다.
 # 출처가 운동 세트/횟수를 제공하지 않으므로 sets_reps는 "출처의 프로토콜 참고"로 둔다(수치를 지어내지 않음).
 # 자가 테스트는 연구의 측정 방식을 집에서 할 수 있게 단순화한 간이 버전이며, 진단이 아니다.
-# 이 앱은 의료 진단이 아니다. 통증이 있으면 운동을 멈추고 전문가와 상담한다.
+# 원인-문헌 연결은 상관/연관 수준이며 인과가 아니다. 문헌이 연결을 지지하지 않는 원인은 넣지 않았다
+# (그래서 일부 issue는 causes가 비어 있다). 이 앱은 의료 진단이 아니다. 통증이 있으면 운동을 멈추고 전문가와 상담한다.
 defs:
   src_sakata: &src_sakata >-
     Sakata J, et al. (2019). Throwing Injuries in Youth Baseball Players: Can a Prevention Program
     Help? A Randomized Controlled Trial. Am J Sports Med 47(11):2709-2716.
     PMID 31336051, DOI 10.1177/0363546519861378.
-  src_myers: &src_myers >-
-    Myers JB, et al. (2005). On-the-Field Resistance-Tubing Exercises for Throwers: An
-    Electromyographic Analysis. J Athl Train 40(1):15-22. PMID 15902319 (DOI: PubMed 미기재).
-  src_szymanski: &src_szymanski >-
-    Szymanski DJ, et al. (2010). The relation between anthropometric and physiological variables and
-    bat velocity of high-school baseball players before and after 12 weeks of training. J Strength
-    Cond Res 24(11):2933-2943. PMID 20881505, DOI 10.1519/JSC.0b013e3181f0a76a.
 
   ex_warmup: &ex_warmup
     id: ex_warmup_mobility_balance
@@ -24,98 +18,49 @@ defs:
       청소년 야구 선수 237명 대상 무작위 대조 연구에서 쓴 워밍업 프로그램(스트레칭 5종, 동적 가동성 2종,
       균형 훈련 2종)입니다. 이 연구에서 어깨·팔꿈치 부상 발생률이 낮아졌고 비지배측 엉덩관절 내회전과
       흉추 후만각이 개선됐습니다. 대상이 9~11세 선수이므로 성인에게 같은 효과가 있다는 근거는 아닙니다.
-      구체적인 동작과 방법은 출처 논문을 확인하세요.
+      보폭에 미치는 효과는 이 연구에서 검증되지 않았습니다. 구체적인 동작과 방법은 출처 논문을 확인하세요.
     source: *src_sakata
-  ex_core: &ex_core
-    id: ex_core_stability
-    name: 코어(몸통-골반) 안정화 운동
-    sets_reps: 출처의 프로토콜 참고
-    description: >-
-      코어 안정성은 골반 위에서 몸통의 위치와 움직임을 조절해 힘을 끝 분절까지 전달하는 능력으로 정의되며,
-      한 발로 선 상태에서 몸통을 조절하는 능력을 평가·훈련에 포함하도록 권고한 리뷰입니다. 엘리트 투수
-      연구는 지지다리 쪽 요추-골반 조절이 어깨·팔꿈치 부하와 관련 있어 요추-골반 조절 훈련을 고려할 만하다고
-      제안했습니다. 구체적인 동작은 출처를 확인하세요.
-    source: >-
-      Kibler WB, et al. (2006). The role of core stability in athletic function. Sports Med
-      36(3):189-198. PMID 16526831, DOI 10.2165/00007256-200636030-00001; Laudner K, et al. (2019).
-      The influence of lumbopelvic control on shoulder and elbow kinetics in elite baseball pitchers.
-      J Shoulder Elbow Surg 28(2):330-334. PMID 30268588, DOI 10.1016/j.jse.2018.07.015.
-  ex_med_ball: &ex_med_ball
-    id: ex_rotational_med_ball
-    name: 회전 · 전신 메디신볼 운동
-    sets_reps: 출처의 프로토콜 참고 (연구에서는 주 3회, 12주)
-    description: >-
-      고교 야구 선수 49명 무작위 연구에서 한 그룹이 근력 프로그램에 더해 회전·전신 메디신볼 운동을
-      주 3회, 12주 동안 했습니다. 이 연구의 결과 지표는 투구가 아니라 배트 스윙 속도이며, 이 운동이 투구
-      속도를 높인다는 근거는 아닙니다. 연구는 회전 근력과 하체 파워가 스윙 속도와 관련 있다고 보고했습니다.
-      세트·횟수는 출처에 없으므로 코치나 트레이너와 정하세요.
-    source: *src_szymanski
-  ex_tubing: &ex_tubing
-    id: ex_tubing_shoulder_7
-    name: 튜빙 어깨 운동 (던지는 선수용 7종)
-    sets_reps: 출처의 프로토콜 참고
-    description: >-
-      남성 15명 근전도 연구에서 12가지 튜빙 운동 중 7가지(90도 외전 외회전, 던지기 감속, 어깨 굴곡,
-      어깨 신전, 낮은 견갑 로우, 던지기 가속, 견갑 펀치)가 회전근개·어깨 주동근·견갑 안정근을 모두
-      중간 이상(최대 수의수축의 20% 초과)으로 활성화했습니다. 근활성도 연구이며 운동 효과를 검증한 연구는
-      아닙니다. 던지기 전 워밍업용으로 소개된 운동입니다.
-    source: *src_myers
-
-  st_single_leg: &st_single_leg
+  st_single_leg_stride: &st_single_leg_stride
     id: st_single_leg_stance
     instruction: >-
-      맨발로 한 발로 서서 두 손을 허리에 얹고 30초 버팁니다. 앞이나 옆에서 영상을 찍어 양발 모두 확인하세요.
-      특히 뒷발(축발)로 설 때 골반이 한쪽으로 기울거나 몸통이 크게 흔들리는지 봅니다.
+      맨발로 한 발로 서서 두 손을 허리에 얹고 최대 30초 버팁니다. 양발 모두 해 보세요. 한쪽 발로 30초를
+      버티지 못하거나 몸이 크게 흔들리는 쪽이 있는지 봅니다. (30초 기준은 이 앱의 간이 기준입니다.)
     options:
-      - {id: stable, label: 양발 모두 흔들림 없이 안정적이다}
-      - {id: wobble, label: 골반이 기울거나 몸통이 눈에 띄게 흔들리는 쪽이 있다}
+      - {id: stable, label: 양발 모두 30초 동안 안정적으로 버틴다}
+      - {id: wobble, label: 버티지 못하거나 크게 흔들리는 쪽이 있다}
     implies_cause_on: wobble
     source: >-
-      연구에서 단일 다리 서기 중 요추-골반 기울임 또는 서있는 시간을 측정한 방식을 간이화함.
-      Laudner K, et al. (2019). J Shoulder Elbow Surg 28(2):330-334. PMID 30268588,
-      DOI 10.1016/j.jse.2018.07.015; Fry KE, et al. (2017). Sports Health 9(3):205-209.
-      PMID 27864504, DOI 10.1177/1941738116679815.
-  st_hip_ir: &st_hip_ir
-    id: st_hip_internal_rotation
+      연구에서 단일 다리 서기 시간(single-leg stance time)을 측정한 방식을 간이화함. 청소년 투수에서 보폭과
+      한 발 균형이 연관(r=0.28)됨. Fry KE, et al. (2017). Youth Baseball Pitching Stride Length: Normal
+      Values and Correlation With Field Testing. Sports Health 9(3):205-209. PMID 27864504,
+      DOI 10.1177/1941738116679815.
+  st_fatigue_stride: &st_fatigue_stride
+    id: st_early_vs_late_throws
     instruction: >-
-      의자 끝에 앉아 무릎을 90도로 굽힙니다. 한쪽 발목을 몸 바깥쪽으로 천천히 보내(엉덩관절 내회전)
-      끝까지 갈 때의 발 위치를 영상이나 사진으로 남기고, 반대쪽도 똑같이 합니다. 두 사진을 비교하세요.
+      같은 날 한 세션에서 처음 5구와 마지막 5구를 같은 각도로 촬영해, 앞발이 닿는 위치(보폭)를 비교하세요.
     options:
-      - {id: even, label: 좌우가 비슷하고 둘 다 부드럽게 움직인다}
-      - {id: stiff, label: 한쪽이 눈에 띄게 덜 가거나 뻑뻑하다}
-    implies_cause_on: stiff
+      - {id: same, label: 처음과 마지막의 보폭이 비슷하다}
+      - {id: later_shorter, label: 뒤로 갈수록 보폭이 눈에 띄게 짧아진다}
+    implies_cause_on: later_shorter
     source: >-
-      연구에서 앉은 자세 수동 엉덩관절 회전 가동범위를 각도계로 측정하고 좌우를 비교한 방식을 간이화함.
-      Plummer HA, et al. (2021). Int J Sports Phys Ther 16(5):1323-1329. PMID 34631253,
-      DOI 10.26603/001c.27625; Ellenbecker TS, et al. (2007). Am J Sports Med 35(8):1371-1376.
-      PMID 17387220, DOI 10.1177/0363546507300260.
-  st_med_ball_lr: &st_med_ball_lr
-    id: st_rotational_throw_lr
+      연구는 투구 중 피로 부하에 대응해 보폭이 짧아질 수 있다고 보고함(보폭 +-25% 조건 비교).
+      Crotin RL, et al. (2014). Altered stride length in response to increasing exertion among baseball
+      pitchers. Med Sci Sports Exerc 46(3):565-571. PMID 23917472, DOI 10.1249/MSS.0b013e3182a79cd9.
+  st_fatigue_sequence: &st_fatigue_sequence
+    id: st_early_vs_late_sequence
     instruction: >-
-      메디신볼(없으면 이 테스트는 건너뜁니다)을 가볍게 두 손으로 잡고 벽을 향해 옆으로 서서, 왼쪽 방향과
-      오른쪽 방향으로 각각 3번씩 천천히 회전해 던져 봅니다. 힘과 부드러움이 좌우 어느 쪽이 눈에 띄게
-      약한지 느껴 보세요. 통증이 있으면 즉시 멈춥니다.
+      같은 날 한 세션에서 처음 5구와 마지막 5구를 같은 각도로 촬영해 앱에서 따로 분석하고, 같은 문제
+      표시가 뒤쪽 투구에서 더 두드러지는지 비교하세요.
     options:
-      - {id: even, label: 좌우 힘과 부드러움이 비슷하다}
-      - {id: weak_side, label: 한쪽 방향이 확실히 약하거나 어색하다}
-    implies_cause_on: weak_side
+      - {id: same, label: 처음과 마지막이 비슷하다}
+      - {id: later_worse, label: 뒤쪽 투구에서 더 심해진다}
+    implies_cause_on: later_worse
     source: >-
-      연구에서 지배측/비지배측 몸통 회전 근력과 메디신볼 던지기를 측정해 비교한 방식을 간이화함.
-      Szymanski DJ, et al. (2010). J Strength Cond Res 24(11):2933-2943. PMID 20881505,
-      DOI 10.1519/JSC.0b013e3181f0a76a.
-  st_shoulder_hadd: &st_shoulder_hadd
-    id: st_shoulder_horizontal_adduction
-    instruction: >-
-      바로 서서 던지는 팔을 어깨 높이로 들고 반대쪽 손으로 가슴 앞으로 천천히 당깁니다(어깨가 올라가지
-      않게). 반대 팔도 같은 방법으로 하고 팔이 가슴을 가로지르는 정도를 영상으로 비교하세요.
-    options:
-      - {id: even, label: 양팔이 비슷하게 넘어간다}
-      - {id: tight, label: 던지는 팔이 눈에 띄게 덜 넘어가거나 당긴다}
-    implies_cause_on: tight
-    source: >-
-      연구에서 지배측 어깨 수평내전 가동범위 결손을 측정한 방식을 간이화함.
-      Sakata J, et al. (2019). Am J Sports Med 47(11):2709-2716. PMID 31336051,
-      DOI 10.1177/0363546519861378.
+      연구는 단일 세션의 처음 5구와 마지막 5구를 비교했고(평균 약 35구), 투구 수 증가에 따라 엉덩관절·복사근
+      근력, 몸통 회전각, 신체 분리각(body separation angle), 골반 회전 속도 관련 변화를 보고함.
+      Johnson AL, et al. (2025). Assessment of Muscular Fatigue on Hip and Torso Biomechanics in
+      Adolescent Baseball Pitchers. J Strength Cond Res 39(8):893-899. PMID 40440541,
+      DOI 10.1519/JSC.0000000000005136.
 
 issues:
   - id: stride_short
@@ -126,35 +71,24 @@ issues:
     evidence_template: 착지 시 보폭이 키의 {value}{unit}로, 기준 대비 z={z}입니다.
     causes:
       - id: stance_balance
-        title: 한 발 지지 안정성 부족
-        self_test: *st_single_leg
+        title: 한 발 균형 부족 (청소년 투수에서 보폭과 연관이 보고됨)
+        self_test: *st_single_leg_stride
         exercises:
           - *ex_warmup
-          - *ex_core
-      - id: hip_mobility
-        title: 엉덩관절 가동범위 제한
-        self_test: *st_hip_ir
-        exercises:
-          - *ex_warmup
+      - id: fatigue
+        title: 투구 수 증가에 따른 피로 (보폭이 짧아지는 반응과 연관이 보고됨)
+        self_test: *st_fatigue_stride
+        exercises: []
 
+  # 앞다리 블록: 앞무릎 펴짐과 구속의 연관(Dowling 2024)은 보고됐지만, 원인(가동성/균형/근력)과 앞무릎 펴짐을
+  # 잇는 검증된 문헌을 찾지 못해 원인을 넣지 않는다(출처 없는 항목은 넣지 않는다).
   - id: lead_knee_weak
     title: 앞다리 블록이 약합니다
     when:
       any:
         - {metric: lead_knee_extension_deg, z_lt: -1.0}
     evidence_template: 착지 후 앞무릎 펴짐이 {value}{unit}로, 기준 대비 z={z}입니다.
-    causes:
-      - id: lumbopelvic_control
-        title: 한 발 지지 시 몸통-골반 조절 부족
-        self_test: *st_single_leg
-        exercises:
-          - *ex_core
-          - *ex_warmup
-      - id: hip_mobility
-        title: 엉덩관절 가동범위 제한
-        self_test: *st_hip_ir
-        exercises:
-          - *ex_warmup
+    causes: []
 
   - id: pelvis_shoulder_order
     title: 골반에서 어깨로 에너지가 순서대로 전달되지 않습니다
@@ -164,21 +98,10 @@ issues:
         - {metric: gap_pelvis_shoulder_ms, abs_z_gt: 2.0}
     evidence_template: 골반→어깨 최고속도 간격이 {value}{unit}로, 기준 대비 z={z}입니다.
     causes:
-      - id: hip_mobility
-        title: 뒷다리 엉덩관절 가동범위 제한
-        self_test: *st_hip_ir
-        exercises:
-          - *ex_warmup
-      - id: rotational_power
-        title: 회전 힘의 좌우 불균형
-        self_test: *st_med_ball_lr
-        exercises:
-          - *ex_med_ball
-      - id: lumbopelvic_control
-        title: 한 발 지지 시 몸통-골반 조절 부족
-        self_test: *st_single_leg
-        exercises:
-          - *ex_core
+      - id: fatigue
+        title: 투구 수 증가에 따른 피로 (신체 분리각·골반 회전 속도 변화와 연관이 보고됨)
+        self_test: *st_fatigue_sequence
+        exercises: []
 
   - id: trunk_speed_loss
     title: 몸통에서 속도가 줄어듭니다
@@ -188,17 +111,7 @@ issues:
         - {metric: shoulder_peak_speed_ms, z_lt: -1.5}
         - {metric: trunk_flexion_peak_vel_dps, z_lt: -1.5}
     evidence_template: 몸통 속도 지표가 {value}{unit}로, 기준 대비 z={z}입니다.
-    causes:
-      - id: lumbopelvic_control
-        title: 몸통-골반 안정성 부족
-        self_test: *st_single_leg
-        exercises:
-          - *ex_core
-      - id: rotational_power
-        title: 회전 힘의 좌우 불균형
-        self_test: *st_med_ball_lr
-        exercises:
-          - *ex_med_ball
+    causes: []
 
   - id: elbow_wrist_order
     title: 팔꿈치에서 손목으로 순서가 어긋납니다
@@ -207,18 +120,7 @@ issues:
         - {leak_segment: arm, leak_kind: out_of_order}
         - {metric: gap_elbow_wrist_ms, abs_z_gt: 2.0}
     evidence_template: 팔꿈치→손목 최고속도 간격이 {value}{unit}로, 기준 대비 z={z}입니다.
-    causes:
-      - id: shoulder_mobility
-        title: 던지는 어깨의 수평내전 가동범위 제한
-        self_test: *st_shoulder_hadd
-        exercises:
-          - *ex_warmup
-          - *ex_tubing
-      - id: lumbopelvic_control
-        title: 한 발 지지 시 몸통-골반 조절 부족
-        self_test: *st_single_leg
-        exercises:
-          - *ex_core
+    causes: []
 
   - id: arm_speed_loss
     title: 팔에서 속도가 줄어듭니다
@@ -227,20 +129,4 @@ issues:
         - {leak_segment: arm, leak_kind: speed_drop}
         - {metric: wrist_peak_speed_ms, z_lt: -1.5}
     evidence_template: 손목 최고 속도가 {value}{unit}로, 기준 대비 z={z}입니다.
-    causes:
-      - id: shoulder_mobility
-        title: 던지는 어깨의 수평내전 가동범위 제한
-        self_test: *st_shoulder_hadd
-        exercises:
-          - *ex_warmup
-          - *ex_tubing
-      - id: rotational_power
-        title: 회전 힘의 좌우 불균형
-        self_test: *st_med_ball_lr
-        exercises:
-          - *ex_med_ball
-      - id: lumbopelvic_control
-        title: 한 발 지지 시 몸통-골반 조절 부족
-        self_test: *st_single_leg
-        exercises:
-          - *ex_core
+    causes: []
