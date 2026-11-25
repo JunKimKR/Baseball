@@ -2,6 +2,7 @@ import numpy as np
 
 from pitchcoach.metrics import METRIC_DEFS, compute_metrics
 from pitchcoach.models import Events, Subject
+from pitchcoach.norms import load_norms, score_metrics
 from synth import make_pitch
 
 PPM = 500.0
@@ -67,3 +68,13 @@ def test_metrics_missing_event():
     assert m["trunk_flexion_br_deg"].value is not None
     m = _run(events=Events())
     assert all(x.value is None for x in m.values())
+
+
+def test_elbow_extension_velocity_is_reference_only():
+    """The side view inflates elbow extension velocity ~2.5x (forearm foreshortening), so it is
+    still computed but low confidence: no packaged norm and no score."""
+    kp, ev = make_pitch(fps=240)
+    metrics = compute_metrics(kp, ev, 240.0, PPM, SUBJ, 1)
+    (elbow,) = [m for m in score_metrics(metrics, load_norms()) if m.name == "elbow_ext_peak_vel_dps"]
+    assert elbow.confidence == "low" and elbow.value is not None
+    assert elbow.score is None and elbow.z is None and elbow.norm is None

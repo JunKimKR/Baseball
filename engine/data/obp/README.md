@@ -138,9 +138,12 @@ OBP's own events are used only for the agreement table below.
 is excluded. That gives **379 trials, 93 athletes**: 310 trials RHP, 69 LHP; heights
 167.6–203.2 cm. No trials were skipped.
 
-**Norms**: every metric whose default confidence is not `low` (13 metrics), with the mean and
+**Norms**: every metric whose default confidence is not `low` (12 metrics), with the mean and
 sample sd over the trials. `direction` is `higher` for speeds, angular velocities, stride and
-lead-knee extension, and `target` for everything else.
+lead-knee extension, and `target` for everything else. Three `low` metrics get no norm and no
+score; they are reference only:
+- the pelvis and shoulder rotation proxies
+- `elbow_ext_peak_vel_dps` (see below)
 
 | Metric | Mean | SD | Direction |
 |---|---|---|---|
@@ -151,7 +154,6 @@ lead-knee extension, and `target` for everything else.
 | `trunk_flexion_br_deg` | 26.3° | 8.3 | target |
 | `trunk_flexion_peak_vel_dps` | 342°/s | 59 | higher |
 | `shoulder_peak_speed_ms` | 3.87 m/s | 0.46 | higher |
-| `elbow_ext_peak_vel_dps` | 6333°/s | 1867 | higher |
 | `wrist_peak_speed_ms` | 19.45 m/s | 1.09 | higher |
 | `fp_to_br_ms` | 110.1 ms | 22.1 | target |
 | `gap_pelvis_shoulder_ms` | 32.2 ms | 64.2 | target |
@@ -204,13 +206,25 @@ What follows from these differences:
 
   The ~110 ms mean of `fp_to_br_ms` comes from the definitions above, not from the misses.
 
+### Why `elbow_ext_peak_vel_dps` has no norm
+
+Its default confidence is `low`, a controller ruling on the numbers below. It is still computed
+and shown, but not scored.
+
+- It is the rate of the **projected** elbow angle, and it mostly measures forearm
+  foreshortening.
+- In OBP its 2D peak comes when the projected forearm is a median 41 % of its true length
+  (5th percentile 11 %).
+- The projected rate averaged 6333 ± 1867°/s over the 379 trials (median 6026°/s). The true
+  3D elbow extension velocity from the same landmarks, with the same 15 Hz filter, was a median
+  2460°/s (5th–95th percentile 2100–2850°/s; every 4th of the 411 trials).
+- So the side view inflates it about 2.5×, and its spread mostly reflects how the arm is turned
+  relative to the camera.
+- With direction `higher`, a norm would reward foreshortening, and the spec forbids overstating
+  precision.
+
 ### Caveats for using the norms
 
-- `elbow_ext_peak_vel_dps` is the rate of the **projected** elbow angle. It peaks when the
-  forearm is foreshortened in the side view (median 41 % of its true length). The 3D elbow
-  extension velocity from the same landmarks is about 2460°/s; the projected rate is about
-  6300°/s. The video analysis measures the same projected quantity, so it compares like with
-  like, but the value is not comparable with 3D literature values.
 - `gap_pelvis_shoulder_ms` has a wide spread (sd 64 ms, robust sd 31 ms). The 2D pelvis-center
   speed has a broad plateau during the stride, and its peak frame falls anywhere from 130 ms
   before to 40 ms after foot plant (5th–95th percentile).

@@ -65,13 +65,6 @@
       "direction": "higher",
       "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
     },
-    "elbow_ext_peak_vel_dps": {
-      "mean": 6332.6,
-      "sd": 1867.2,
-      "n": 379,
-      "direction": "higher",
-      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
-    },
     "wrist_peak_speed_ms": {
       "mean": 19.453,
       "sd": 1.0893,

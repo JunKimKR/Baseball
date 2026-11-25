@@ -25,8 +25,7 @@ PACKAGED = ENGINE / "src" / "pitchcoach" / "data" / "norms_side_v1.json"
 NORM_NAMES = [d["name"] for d in METRIC_DEFS if d["confidence"] != "low"]
 TIMING = {d["name"] for d in METRIC_DEFS if d["timing"]}
 HIGHER = {"stride_length_pct_height", "lead_knee_extension_deg", "pelvis_peak_speed_ms",
-          "trunk_flexion_peak_vel_dps", "shoulder_peak_speed_ms", "elbow_ext_peak_vel_dps",
-          "wrist_peak_speed_ms"}
+          "trunk_flexion_peak_vel_dps", "shoulder_peak_speed_ms", "wrist_peak_speed_ms"}
 SUBJ_R = Subject(185.0, "R", "arm")
 
 

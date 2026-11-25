@@ -27,7 +27,8 @@ METRIC_DEFS: list[dict] = [
     _d("trunk_flexion_br_deg", "릴리스 시 몸통 숙임", "°", "trunk", "high"),
     _d("trunk_flexion_peak_vel_dps", "몸통 숙임 최고 각속도", "°/s", "trunk", "medium"),
     _d("shoulder_peak_speed_ms", "어깨 중심 최고 속도", "m/s", "trunk", "medium"),
-    _d("elbow_ext_peak_vel_dps", "팔꿈치 펴짐 최고 각속도", "°/s", "arm", "medium"),
+    # low: the side view inflates it ~2.5x (forearm foreshortening); reference only, no norm
+    _d("elbow_ext_peak_vel_dps", "팔꿈치 펴짐 최고 각속도", "°/s", "arm", "low"),
     _d("wrist_peak_speed_ms", "손목 최고 속도", "m/s", "arm", "medium"),
     _d("fp_to_br_ms", "착지→릴리스 시간", "ms", "arm", "high", True),
     _d("gap_pelvis_shoulder_ms", "골반→어깨 최고속도 간격", "ms", "trunk", "medium", True),
