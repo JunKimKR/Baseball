@@ -20,6 +20,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--hand", choices=["R", "L"], required=True, help="throwing hand")
     p.add_argument("--camera-side", choices=["arm", "glove"], default="arm")
     p.add_argument("--out", type=Path, required=True, help="result JSON path")
+    sv = sub.add_parser("serve", help="run the local web server (127.0.0.1 only)")
+    sv.add_argument("--port", type=int, default=8000)
+    sv.add_argument("--data-dir", type=Path, default=Path.home() / ".pitchcoach" / "data")
+    sv.add_argument("--web-dir", type=Path, default=None, help="built web app (default: <repo>/web/dist)")
     return parser
 
 
@@ -40,6 +44,18 @@ def main(argv: list[str] | None = None, estimator=None) -> int:
         for w in errors:
             print(f"[{w.code}] {w.message}", file=sys.stderr)
         return 1 if errors else 0
+    if args.command == "serve":
+        import uvicorn
+
+        from .server.app import create_app
+
+        web_dir = args.web_dir
+        if web_dir is None:
+            default = Path(__file__).resolve().parents[3] / "web" / "dist"
+            web_dir = default if default.is_dir() else None
+        args.data_dir.mkdir(parents=True, exist_ok=True)
+        uvicorn.run(create_app(args.data_dir, estimator, web_dir), host="127.0.0.1", port=args.port)
+        return 0
     return 2
 
 
