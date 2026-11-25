@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getAnalysis, pollAnalysis, uploadVideo } from "./api";
+import { getAnalysis, MAX_POLL_FAILURES, pollAnalysis, uploadVideo } from "./api";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -78,5 +78,39 @@ describe("api", () => {
     const updatesAtCancel = onUpdate.mock.calls.length;
     await vi.advanceTimersByTimeAsync(5000);
     expect(onUpdate.mock.calls.length).toBe(updatesAtCancel);
+  });
+
+  it("pollAnalysis reports 404 once and stops", async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ detail: "analysis not found" }, 404));
+    const onError = vi.fn();
+    pollAnalysis("zzz", vi.fn(), 1000, onError);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0].status).toBe(404);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("pollAnalysis gives up after persistent failures but retries transient ones", async () => {
+    let n = 0;
+    fetchMock.mockImplementation(async () => {
+      n += 1;
+      if (n === 1) throw new TypeError("Failed to fetch");
+      return jsonResponse({ id: "a", status: "done", error: null, result: null });
+    });
+    const onError = vi.fn();
+    const updates: string[] = [];
+    pollAnalysis("a", (s) => updates.push(s.status), 1000, onError);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(updates).toEqual(["done"]);
+    expect(onError).not.toHaveBeenCalled();
+
+    fetchMock.mockReset();
+    fetchMock.mockImplementation(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    pollAnalysis("b", vi.fn(), 1000, onError);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fetchMock).toHaveBeenCalledTimes(MAX_POLL_FAILURES);
+    expect(onError).toHaveBeenCalledTimes(1);
   });
 });

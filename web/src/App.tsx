@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import UploadPage from "./components/UploadPage";
-import AnalysisPlaceholder from "./components/AnalysisPlaceholder";
+import AnalysisPage from "./components/AnalysisPage";
 
 /** Hash routes: `#/` → upload + history, `#/a/{id}` → analysis. */
 export function parseRoute(hash: string): { page: "upload" } | { page: "analysis"; id: string } {
@@ -18,7 +18,7 @@ export default function App() {
   const route = parseRoute(hash);
   return (
     <main className="app">
-      {route.page === "analysis" ? <AnalysisPlaceholder id={route.id} /> : <UploadPage />}
+      {route.page === "analysis" ? <AnalysisPage id={route.id} /> : <UploadPage />}
     </main>
   );
 }

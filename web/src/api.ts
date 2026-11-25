@@ -21,6 +21,14 @@ async function errorMessage(res: Response): Promise<string> {
   return `요청 실패 (${res.status})`;
 }
 
+/** Error from a non-2xx response; `status` lets callers tell "not found" from transient failures. */
+export class HttpError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "HttpError";
+  }
+}
+
 export async function uploadVideo(file: File, opts: UploadOptions): Promise<string> {
   const fd = new FormData();
   fd.append("video", file);
@@ -35,29 +43,44 @@ export async function uploadVideo(file: File, opts: UploadOptions): Promise<stri
 
 export async function getAnalysis(id: string): Promise<AnalysisState> {
   const res = await fetch(`/api/analyses/${encodeURIComponent(id)}`);
-  if (!res.ok) throw new Error(await errorMessage(res));
+  if (!res.ok) throw new HttpError(await errorMessage(res), res.status);
   const b = await res.json();
   return { status: b.status, error: b.error ?? null, result: b.result ?? null };
 }
 
-/** Polls until done/failed; returns a cancel function. Network errors are retried. */
+/** After this many consecutive failures polling gives up and reports through `onError`. */
+export const MAX_POLL_FAILURES = 5;
+
+/**
+ * Polls until done/failed; returns a cancel function. Transient errors are retried,
+ * but a 404 or MAX_POLL_FAILURES consecutive failures stop polling and call `onError`.
+ */
 export function pollAnalysis(
   id: string,
   onUpdate: (state: AnalysisState) => void,
   intervalMs = 1000,
+  onError?: (err: Error) => void,
 ): () => void {
   let cancelled = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let failures = 0;
 
   const tick = async () => {
     let next = true;
     try {
       const state = await getAnalysis(id);
       if (cancelled) return;
+      failures = 0;
       onUpdate(state);
       if (state.status !== "processing") next = false;
-    } catch {
+    } catch (err) {
       if (cancelled) return;
+      failures += 1;
+      const notFound = err instanceof HttpError && err.status === 404;
+      if (notFound || failures >= MAX_POLL_FAILURES) {
+        onError?.(err instanceof Error ? err : new Error(String(err)));
+        next = false;
+      }
     }
     if (next && !cancelled) timer = setTimeout(tick, intervalMs);
   };
