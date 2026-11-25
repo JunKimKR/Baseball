@@ -87,8 +87,9 @@ export default function VideoOverlay({ result, videoSrc, seekTo, onFrame }: Prop
       ctx.globalAlpha = st.alpha;
       ctx.strokeStyle = st.color;
       ctx.lineWidth = st.width;
+      ctx.lineCap = st.cap;
       ctx.setLineDash(st.dash);
-      if (intensity > 0.5 || isLeak) {
+      if (st.glow) {
         ctx.globalCompositeOperation = "lighter";
         ctx.shadowColor = st.color;
         ctx.shadowBlur = 6 + 22 * intensity;
@@ -101,9 +102,9 @@ export default function VideoOverlay({ result, videoSrc, seekTo, onFrame }: Prop
       ctx.stroke();
       ctx.restore();
 
-      // flowing particles (dimmed with the segment when confidence is low)
+      // flowing particles (dimmed with the segment, and not additive, when confidence is low)
       ctx.save();
-      ctx.globalCompositeOperation = "lighter";
+      ctx.globalCompositeOperation = st.additive ? "lighter" : "source-over";
       ctx.fillStyle = isLeak ? st.color : "#fff7c2";
       for (const p of particlesFor(name, intensity, fSmooth, 1, { line: lines, leaking: isLeak })) {
         ctx.globalAlpha = p.alpha * st.alpha;

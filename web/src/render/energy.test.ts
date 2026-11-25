@@ -45,6 +45,22 @@ describe("segmentStyle", () => {
     expect(s.alpha).toBe(0.35);
     expect(s.dash).toEqual([6, 4]);
   });
+  it("low confidence never glows or adds up, and keeps its dashes visible", () => {
+    // glow and additive particles would undo the 0.35 dimming of a strong but untrusted signal
+    const low = segmentStyle(1, "low", false);
+    expect(low.glow).toBe(false);
+    expect(low.additive).toBe(false);
+    expect(low.cap).toBe("butt"); // round caps fill 4 px dash gaps once the line is wide
+    const high = segmentStyle(1, "medium", false);
+    expect(high.glow).toBe(true);
+    expect(high.additive).toBe(true);
+    expect(high.cap).toBe("round");
+    expect(segmentStyle(0.4, "high", false).glow).toBe(false);
+    // a leak stays visible even on a low-confidence column
+    const leak = segmentStyle(0.3, "low", true);
+    expect(leak.glow).toBe(true);
+    expect(leak.additive).toBe(true);
+  });
   it("leaking is red", () => {
     expect(segmentStyle(0.5, "high", true).color).toBe("#ff3b30");
   });

@@ -10,6 +10,12 @@ export interface SegmentStyle {
   width: number;
   alpha: number;
   dash: number[];
+  /** Halo around the line; additive blending of line and particles. Off for low confidence
+   * (unless leaking): both brighten a strong but untrusted signal past its 0.35 dimming. */
+  glow: boolean;
+  additive: boolean;
+  /** Butt caps keep a low-confidence line's dashes visible; round caps fill the gaps when wide. */
+  cap: CanvasLineCap;
 }
 
 const clamp01 = (v: number) => Math.min(Math.max(Number.isFinite(v) ? v : 0, 0), 1);
@@ -28,6 +34,9 @@ export function segmentStyle(intensity: number, confidence: Confidence, leaking:
     width: 2 + 10 * t,
     alpha: low ? 0.35 : 1,
     dash: low ? [6, 4] : [],
+    glow: leaking || (!low && t > 0.5),
+    additive: leaking || !low,
+    cap: low ? "butt" : "round",
   };
 }
 
