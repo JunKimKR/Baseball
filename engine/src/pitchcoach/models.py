@@ -20,6 +20,7 @@ class VideoMeta:
     width: int
     height: int
     n_frames: int
+    norm_fps: float | None = None  # frame rate of the norms the metrics were scored against
 
     @property
     def duration_s(self) -> float:

@@ -77,3 +77,24 @@ def test_cli_writes_json(pitch, tmp_path):
     d = json.loads(out.read_text())
     assert d["subject"] == {"height_cm": 185.0, "hand": "R", "camera_side": "arm"}
     assert len(d["metrics"]) == 15
+
+
+@pytest.mark.parametrize("fps", [240.0, 120.0, 60.0])
+def test_analyze_scores_against_norms_of_the_video_fps(fps, tmp_path):
+    from pitchcoach.norms import load_norms_for_fps
+
+    kp, _ = make_pitch(fps=fps)
+    meta = VideoMeta(fps=fps, width=1080, height=1920, n_frames=kp.xy.shape[0])
+    res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(kp, meta))
+    norms, norm_fps = load_norms_for_fps(fps)
+    assert norm_fps == fps and res.meta.norm_fps == fps
+    assert res.to_dict()["meta"]["norm_fps"] == fps
+    wrist = next(m for m in res.metrics if m.name == "wrist_peak_speed_ms")
+    assert wrist.norm == norms["wrist_peak_speed_ms"]
+
+
+def test_error_result_has_no_norm_fps(pitch, tmp_path):
+    kp, meta = pitch
+    bad = Keypoints(np.full_like(kp.xy, np.nan), np.zeros_like(kp.vis))
+    res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(bad, meta))
+    assert res.to_dict()["meta"]["norm_fps"] is None

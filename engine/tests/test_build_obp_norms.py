@@ -21,9 +21,12 @@ from pitchcoach.smoothing import smooth
 from synth import make_pitch
 
 ENGINE = Path(__file__).resolve().parents[1]
-PACKAGED = ENGINE / "src" / "pitchcoach" / "data" / "norms_side_v1.json"
+PACKAGED_FPS = (30.0, 60.0, 120.0, 240.0)
+PACKAGED = {fps: ENGINE / "src" / "pitchcoach" / "data" / f"norms_side_v1_{fps:g}hz.json"
+            for fps in PACKAGED_FPS}
 NORM_NAMES = [d["name"] for d in METRIC_DEFS if d["confidence"] != "low"]
 TIMING = {d["name"] for d in METRIC_DEFS if d["timing"]}
+TIMING_NAMES = [n for n in NORM_NAMES if n in TIMING]
 HIGHER = {"stride_length_pct_height", "lead_knee_extension_deg", "pelvis_peak_speed_ms",
           "trunk_flexion_peak_vel_dps", "shoulder_peak_speed_ms", "wrist_peak_speed_ms"}
 SUBJ_R = Subject(185.0, "R", "arm")
@@ -126,16 +129,17 @@ def test_resample_360_to_240_linear():
     assert np.isnan(out.xy[:, 1:]).all()
 
 
-def test_process_trial_matches_direct_240hz_pipeline():
-    """OBP path (360 Hz 3D -> project -> map -> 240 Hz -> smooth) == the video path at 240 Hz."""
+@pytest.mark.parametrize("norm_fps", [240.0, 120.0, 60.0])
+def test_process_trial_matches_direct_video_pipeline(norm_fps):
+    """OBP path (360 Hz 3D -> project -> map -> norm_fps -> smooth) == the video path at norm_fps."""
     names, points, _ = fake_obp_trial()
-    res = bon.process_trial(points, names, 360.0, SUBJ_R)
+    res = bon.process_trial(points, names, 360.0, SUBJ_R, norm_fps=norm_fps)
     assert res.skip_reason is None and res.direction == 1
 
-    kp, _ = make_pitch(fps=240, ppm=1.0)
-    kp = smooth(kp, 240.0)
-    events, _ = detect_events(kp, 240.0, 1.0, SUBJ_R)
-    direct = {m.name: m.value for m in compute_metrics(kp, events, 240.0, 1.0, SUBJ_R, 1)}
+    kp, _ = make_pitch(fps=norm_fps, ppm=1.0)
+    kp = smooth(kp, norm_fps)
+    events, _ = detect_events(kp, norm_fps, 1.0, SUBJ_R)
+    direct = {m.name: m.value for m in compute_metrics(kp, events, norm_fps, 1.0, SUBJ_R, 1)}
     assert res.events == events
     assert sorted(res.values) == sorted(direct)
     for name in NORM_NAMES:
@@ -202,7 +206,7 @@ def test_build_norms_from_fake_trials(tmp_path):
         values.append(res.values)
     infos = [_info("1_1", "1", "college"), _info("1_2", "1", "college"), _info("2_1", "2", "milb")]
     population = bon.population_summary(infos, {"events_not_found": 1})
-    doc = bon.build_norms(values, "OBP test source", population)
+    doc = bon.build_norms(values, "OBP test source", population, 240.0)
     path = tmp_path / "norms.json"
     bon.write_norms(doc, path)
 
@@ -213,6 +217,8 @@ def test_build_norms_from_fake_trials(tmp_path):
         assert e["source"] == "OBP test source" and e["n"] == 3
         assert e["direction"] == ("higher" if name in HIGHER else "target")
     assert raw["version"] == 1 and raw["source"] == "OBP test source"
+    assert raw["norm_fps"] == 240.0 and raw["not_computed"] == []
+    assert "240 Hz" in raw["method"] and "15 Hz" in raw["method"]
     assert raw["license"] == "CC BY-NC-SA 4.0"
     assert raw["population"] == {"levels": ["college", "milb"], "n_trials": 3, "n_athletes": 2,
                                  "n_trials_skipped": 1, "skipped": {"events_not_found": 1}}
@@ -227,7 +233,26 @@ def test_build_norms_rejects_degenerate_metric():
     names, points, _ = fake_obp_trial()
     res = bon.process_trial(points, names, 360.0, SUBJ_R)
     with pytest.raises(ValueError, match="sd"):
-        bon.build_norms([res.values, res.values], "s", {})
+        bon.build_norms([res.values, res.values], "s", {}, 240.0)
+
+
+def _three_trial_values():
+    out = []
+    for seed, (offsets, scale) in enumerate([(OFFSETS_A, 0.95), (None, 1.0), (OFFSETS_C, 1.05)]):
+        names, points, _ = fake_obp_trial(peak_offsets_ms=offsets, x_scale=scale, seed=seed)
+        out.append(bon.process_trial(points, names, 360.0, SUBJ_R).values)
+    return out
+
+
+def test_build_norms_below_60fps_omits_timing_metrics():
+    """Below 60 fps compute_metrics leaves timing metrics None, so the norms have none."""
+    values = [{k: (None if k in TIMING else v) for k, v in x.items()} for x in _three_trial_values()]
+    doc = bon.build_norms(values, "s", {}, 30.0)
+    assert doc["norm_fps"] == 30.0 and doc["not_computed"] == TIMING_NAMES
+    assert list(doc["norms"]) == [n for n in NORM_NAMES if n not in TIMING]
+    assert "30 Hz" in doc["method"] and "6 Hz" in doc["method"]  # smooth caps the cutoff at 0.2 fps
+    with pytest.raises(ValueError, match="fp_to_br_ms"):  # a missing metric at >= 60 fps is an error
+        bon.build_norms(values, "s", {}, 60.0)
 
 
 # --- end to end: main() on a small OBP-format dataset ---
@@ -280,9 +305,9 @@ def obp_dataset(tmp_path):
     ])
 
 
-def _main_args(zip_path, meta_path, out, sha):
+def _main_args(zip_path, meta_path, out, sha, *extra):
     return ["--landmarks", str(zip_path), "--metadata", str(meta_path), "--out", str(out),
-            "--expected-sha256", sha, "--obp-commit", "c" * 40]
+            "--expected-sha256", sha, "--obp-commit", "c" * 40, *extra]
 
 
 def test_main_end_to_end(obp_dataset, tmp_path, capsys):
@@ -299,8 +324,21 @@ def test_main_end_to_end(obp_dataset, tmp_path, capsys):
     assert all(e["source"] == raw["source"] and e["n"] == 3 for e in raw["norms"].values())
     # make_pitch strides ~0.76 x its 185 cm height; metadata heights are meters -> cm
     assert 70 < raw["norms"]["stride_length_pct_height"]["mean"] < 80
+    assert raw["norm_fps"] == 240.0
     printed = capsys.readouterr().out
     assert "foot plant" in printed and "release" in printed
+
+
+def test_main_fps_option(obp_dataset, tmp_path):
+    zip_path, meta_path = obp_dataset
+    sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+    out = tmp_path / "norms60.json"
+    assert bon.main(_main_args(zip_path, meta_path, out, sha, "--fps", "60")) == 0
+    raw = json.loads(out.read_text(encoding="utf-8"))
+    assert raw["norm_fps"] == 60.0 and "60 Hz" in raw["method"]
+    assert list(raw["norms"]) == NORM_NAMES
+    with pytest.raises(SystemExit):
+        bon.main(_main_args(zip_path, meta_path, tmp_path / "x.json", sha, "--fps", "500"))
 
 
 def test_main_rejects_wrong_sha256(obp_dataset, tmp_path):
@@ -313,9 +351,19 @@ def test_main_rejects_wrong_sha256(obp_dataset, tmp_path):
 
 # --- the packaged, OBP-derived norms (built by the script from the real data) ---
 
-def test_packaged_norms_provenance():
-    raw = json.loads(PACKAGED.read_text(encoding="utf-8"))
-    assert list(raw["norms"]) == NORM_NAMES
+def test_packaged_norm_files_are_exactly_the_four_rates():
+    data = ENGINE / "src" / "pitchcoach" / "data"
+    assert sorted(p.name for p in data.glob("norms*.json")) == sorted(p.name for p in PACKAGED.values())
+
+
+@pytest.mark.parametrize("fps", PACKAGED_FPS)
+def test_packaged_norms_provenance(fps):
+    raw = json.loads(PACKAGED[fps].read_text(encoding="utf-8"))
+    assert raw["norm_fps"] == fps
+    expected = NORM_NAMES if fps >= 60 else [n for n in NORM_NAMES if n not in TIMING]
+    assert list(raw["norms"]) == expected
+    assert raw["not_computed"] == [n for n in NORM_NAMES if n not in expected]
+    assert f"{fps:g} Hz" in raw["method"]
     assert raw["license"] == "CC BY-NC-SA 4.0"
     pop = raw["population"]
     assert pop["levels"] == ["college", "independent", "milb"]
@@ -328,16 +376,74 @@ def test_packaged_norms_provenance():
         assert e["direction"] == ("higher" if name in HIGHER else "target"), name
 
 
-def test_packaged_norms_physically_plausible():
+@pytest.mark.parametrize("fps", PACKAGED_FPS)
+def test_packaged_norms_physically_plausible(fps):
     """Guards against axis/unit/mapping regressions when the norms are rebuilt."""
-    m = {k: e["mean"] for k, e in json.loads(PACKAGED.read_text(encoding="utf-8"))["norms"].items()}
+    m = {k: e["mean"] for k, e in json.loads(PACKAGED[fps].read_text(encoding="utf-8"))["norms"].items()}
     assert 60 < m["stride_length_pct_height"] < 95
     assert 20 < m["lead_knee_flexion_fp_deg"] < 70
     assert 0 < m["trunk_flexion_br_deg"] < 60  # leaning toward the plate at release
     assert 1 < m["pelvis_peak_speed_ms"] < m["shoulder_peak_speed_ms"] < m["wrist_peak_speed_ms"]
     assert 10 < m["wrist_peak_speed_ms"] < 40 and m["wrist_peak_speed_ms"] > 4 * m["pelvis_peak_speed_ms"]
+    if fps < 60:
+        return  # no timing norms below 60 fps
     # Our FP (lead ankle stops) is ~12 ms after OBP's force-plate FP and our release (wrist speed
     # peak) ~12 ms before OBP's ball release, so FP->BR is ~25 ms shorter than force-plate values.
     assert 80 < m["fp_to_br_ms"] < 200
     for gap in ("gap_pelvis_shoulder_ms", "gap_shoulder_elbow_ms", "gap_elbow_wrist_ms"):
         assert m[gap] > 0, gap  # proximal-to-distal sequence on average
+
+
+def test_packaged_norms_peak_speeds_fall_with_fps():
+    """Lower frame rates smooth harder and sample peaks coarser: lower peak speeds."""
+    wrist = [json.loads(PACKAGED[f].read_text(encoding="utf-8"))["norms"]["wrist_peak_speed_ms"]["mean"]
+             for f in PACKAGED_FPS]
+    assert wrist == sorted(wrist)
+
+
+# --- regression on the real OBP reference trials (local, git-ignored data) ---
+
+OBP_ZIP = ENGINE / "data" / "obp" / "raw" / "pitching_landmarks.zip"
+OBP_META = ENGINE / "data" / "obp" / "repo" / "baseball_pitching" / "data" / "metadata.csv"
+
+
+@pytest.mark.slow
+def test_fps_matched_norms_keep_reference_finding_rates():
+    """The reference pitchers analyzed as 60 or 120 fps videos get arm_speed_loss about as often
+    as at 240 fps (with 240 Hz norms at 60 fps it was 78 % vs 17 %), and their median wrist-speed
+    z stays near 0. Scoring goes through analyze.score_pitch, the pipeline's own code."""
+    if not (OBP_ZIP.is_file() and OBP_META.is_file()):
+        pytest.skip("local OBP data not present (see engine/data/obp/README.md)")
+    from pitchcoach.analyze import score_pitch
+    from pitchcoach.diagnosis import diagnose, load_rules
+    from pitchcoach.events import throw_direction
+
+    infos = bon.read_trial_info(OBP_META, OBP_META.parent / "poi" / "poi_metrics.csv")
+    rules = load_rules()
+    rates = (240.0, 120.0, 60.0)
+    hits, wrist_z, n = dict.fromkeys(rates, 0), {f: [] for f in rates}, 0
+    for trial in bon.read_landmarks(OBP_ZIP):
+        info = infos[trial.session_pitch]
+        if not bon.in_population(info.level):
+            continue
+        n += 1
+        subject = Subject(info.height_cm, info.hand, "arm")
+        for fps in rates:
+            kp = bon.trial_keypoints(trial.points, trial.names, bon.OBP_FPS, info.hand, fps)
+            events, _ = detect_events(kp, fps, bon.PPM, subject)
+            direction = throw_direction(kp, info.hand, events)
+            metrics, energy, norm_fps = score_pitch(kp, events, fps, bon.PPM, subject, direction)
+            assert norm_fps == fps
+            findings = diagnose(metrics, energy.leaks, rules)
+            hits[fps] += any(f.issue_id == "arm_speed_loss" for f in findings)
+            z = next(m.z for m in metrics if m.name == "wrist_peak_speed_ms")
+            if z is not None:
+                wrist_z[fps].append(z)
+    share = {f: hits[f] / n for f in rates}
+    median_z = {f: float(np.median(wrist_z[f])) for f in rates}
+    print(f"\nreference trials: {n}; arm_speed_loss share {share}; median wrist z {median_z}")
+    assert n >= 300
+    for fps in (120.0, 60.0):
+        assert share[fps] <= 1.5 * share[240.0] + 0.05, share
+        assert share[240.0] <= 1.5 * share[fps] + 0.05, share
+        assert abs(median_z[fps]) < 0.25, median_z

@@ -72,13 +72,14 @@ npm --prefix web test                           # 웹
 - "힘/에너지"는 **운동학적 추정**입니다. 뉴턴(N)이나 N·m 같은 실제 힘·토크가 아닙니다.
 - 측면 영상에서 **골반·어깨 회전은 신뢰도가 낮아** 점수에 넣지 않고 참고로만 보여 줍니다.
 - **팔꿈치 신전 각속도**는 참고값 전용입니다. 2D 측면에서는 약 2.5배 부풀려집니다(원리와 수치는 `engine/data/obp/README.md`).
-- **기준값(norm)**은 OpenBiomechanics Project의 모션캡처 투수(대학·독립리그·마이너, 379구, 93명)를 2D로 투영해 만든 것입니다. **MLB 선수 기준이 아닙니다.** 타이밍 점수는 영상의 프레임 양자화만큼 기준 폭을 넓혀서 계산합니다.
+- **기준값(norm)**은 OpenBiomechanics Project의 모션캡처 투수(대학·독립리그·마이너, 379구, 93명)를 2D로 투영해 만든 것입니다. **MLB 선수 기준이 아닙니다.**
+- 같은 투구도 fps가 낮으면 스무딩과 프레임 간격 때문에 최고 속도가 낮게 나옵니다(60fps에서 손목 최고 속도가 240fps보다 약 1.8 m/s 낮음). 그래서 기준값을 **30·60·120·240fps 네 가지**로 만들어 두고, 영상의 fps 이하 중 가장 높은 것과 비교합니다(59.94처럼 1% 이내로 모자라는 fps는 60으로 봄). 어떤 기준값을 썼는지는 결과 화면과 결과 JSON의 `meta.norm_fps`에 나옵니다. 30fps 기준값은 30fps에서 발 착지를 찾을 수 있었던 311구(86명)로 만들었습니다.
 - **운동 라이브러리는 작습니다(4개).** 각 항목은 PubMed에서 초록을 직접 확인한 문헌을 근거로 달았지만, 근거 대부분은 상관(연관) 수준이며 인과를 뜻하지 않습니다. 일부 문제는 아직 근거 있는 원인이 없어 원인 목록이 비어 있습니다.
 - 운동은 **제안**일 뿐입니다. 적용 전에 트레이닝 코치와 상의하고, 통증이 있으면 멈추고 전문가와 상담하세요.
 
 ## 데이터와 라이선스
 
-- `engine/src/pitchcoach/data/norms_side_v1.json`은 Driveline Baseball의 [OpenBiomechanics Project](https://github.com/drivelineresearch/openbiomechanics) 데이터에서 파생되었으며 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)**(출처 표시 + 비상업 + 동일 조건 변경 허락)을 따릅니다. 이 파일과 파생물을 상업적으로 쓸 수 없습니다. 변경 내용과 재생성 절차는 [`engine/data/obp/README.md`](engine/data/obp/README.md)를 보세요.
+- `engine/src/pitchcoach/data/norms_side_v1_{30,60,120,240}hz.json`(fps별 기준값)은 Driveline Baseball의 [OpenBiomechanics Project](https://github.com/drivelineresearch/openbiomechanics) 데이터에서 파생되었으며 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)**(출처 표시 + 비상업 + 동일 조건 변경 허락)을 따릅니다. 이 파일과 파생물을 상업적으로 쓸 수 없습니다. 변경 내용과 재생성 절차는 [`engine/data/obp/README.md`](engine/data/obp/README.md)를 보세요.
 - 업로드한 영상은 `~/.pitchcoach/data`에 **로컬로 저장**되며 자동으로 지워지지 않습니다. 필요 없으면 직접 삭제하세요. 영상은 외부로 전송되지 않습니다(첫 실행의 모델 다운로드 제외).
 
 ## 이벤트 정확도 평가

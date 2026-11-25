@@ -1,23 +1,27 @@
-"""Build the packaged 2D side-view norms (norms_side_v1.json) from OpenBiomechanics data.
+"""Build the packaged 2D side-view norms (norms_side_v1_<fps>hz.json) from OpenBiomechanics data.
 
 Driveline's OpenBiomechanics Project (OBP) publishes 3D joint-center trajectories of fastball
 pitches (360 Hz, meters; lab frame +X = 2nd base -> home, +Y = 1st-base side, +Z = up). Each
 trial is projected onto the sagittal plane, as a side-view camera sees it, and then goes
-through the same smoothing, event detection and metric code as a video, so that the norms
-use the video pipeline's own definitions:
+through the same smoothing, event detection and metric code as a video of `--fps` frames per
+second, so that the norms use the video pipeline's own definitions at that frame rate:
 
-    3D -> (x, y) = (X, -Z) [m, ppm = 1] -> MediaPipe joint slots -> 240 Hz -> smooth()
+    3D -> (x, y) = (X, -Z) [m, ppm = 1] -> MediaPipe joint slots -> --fps Hz -> smooth()
        -> detect_events() -> throw_direction() -> compute_metrics() -> mean / sd per metric
 
+Lower frame rates smooth harder and sample the peaks coarser, so the norms are built at each
+packaged rate (30, 60, 120, 240 Hz) and a video is scored against the norms of its own rate.
 OBP's own events (force-plate foot plant, ball release) are only compared with ours (printed).
 
-Usage (from engine/):
-    ../.venv/bin/python scripts/build_obp_norms.py \\
+Usage (from engine/), once per packaged rate:
+    for fps in 30 60 120 240; do
+      ../.venv/bin/python -I scripts/build_obp_norms.py --fps $fps \\
         --landmarks data/obp/raw/pitching_landmarks.zip \\
         --metadata data/obp/repo/baseball_pitching/data/metadata.csv \\
-        --out src/pitchcoach/data/norms_side_v1.json
+        --out src/pitchcoach/data/norms_side_v1_${fps}hz.json
+    done
 
-The data are licensed CC BY-NC-SA 4.0, and so is the generated file (engine/data/obp/README.md).
+The data are licensed CC BY-NC-SA 4.0, and so are the generated files (engine/data/obp/README.md).
 """
 
 from __future__ import annotations
@@ -42,9 +46,9 @@ import numpy as np
 from pitchcoach.events import detect_events, throw_direction
 from pitchcoach.joints import JOINTS, idx, side_joints
 from pitchcoach.kinematics import speed
-from pitchcoach.metrics import METRIC_DEFS, compute_metrics
+from pitchcoach.metrics import METRIC_DEFS, MIN_TIMING_FPS, compute_metrics
 from pitchcoach.models import Events, Keypoints, Subject
-from pitchcoach.smoothing import smooth
+from pitchcoach.smoothing import effective_cutoff_hz, smooth
 
 REPO_URL = "https://github.com/drivelineresearch/openbiomechanics"
 RELEASE_TAG = "dataset-v1"
@@ -55,7 +59,7 @@ LICENSE = "CC BY-NC-SA 4.0"
 LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 
 OBP_FPS = 360.0
-NORM_FPS = 240.0               # metrics (timing included) are computed as for a 240 fps video
+DEFAULT_NORM_FPS = 240.0       # metrics are computed as for a video of this many fps (--fps)
 PPM = 1.0                      # coordinates are meters
 FORWARD_AXIS, UP_AXIS = 0, 2   # OBP lab frame: +X 2nd base -> home, +Y 1st-base side, +Z up
 
@@ -85,10 +89,15 @@ OBP_JOINTS = {
 OPTIONAL_JOINTS = ("glove_elbow_jc", "glove_wrist_jc")
 
 NORM_METRICS = [d["name"] for d in METRIC_DEFS if d["confidence"] != "low"]
+TIMING_METRICS = {d["name"] for d in METRIC_DEFS if d["timing"]}
 HIGHER_KEYWORDS = ("speed", "_vel_", "stride", "knee_extension")
-METHOD = ("OBP 3D 관절 중심(360 Hz, m)을 측면으로 투영(x = X: 2루→홈, y = −Z) → 240 Hz 선형 "
-          "리샘플 → pitchcoach smooth(15 Hz 저역통과) → detect_events·throw_direction·"
-          "compute_metrics(영상 분석과 같은 정의) → 지표별 평균·표본표준편차")
+
+
+def method(norm_fps: float) -> str:
+    return (f"OBP 3D 관절 중심(360 Hz, m)을 측면으로 투영(x = X: 2루→홈, y = −Z) → {norm_fps:g} Hz 선형 "
+            f"리샘플 → pitchcoach smooth({effective_cutoff_hz(norm_fps):g} Hz 저역통과) → "
+            f"detect_events·throw_direction·compute_metrics({norm_fps:g} fps 영상 분석과 같은 정의) → "
+            "지표별 평균·표본표준편차")
 
 
 # --- per-trial pipeline ---
@@ -165,27 +174,33 @@ def throw_wrist_is_fastest(kp: Keypoints, hand: str, frame: int, fps: float) -> 
 class TrialResult:
     """Metric values of one trial, or why it was skipped (values is then empty)."""
     values: dict[str, float | None]
-    events: Events                 # frames at NORM_FPS, counted from the trial's first frame
+    events: Events                 # frames at norm_fps, counted from the trial's first frame
     direction: int | None = None
     skip_reason: str | None = None
     warnings: list[str] = field(default_factory=list)
 
 
-def process_trial(points_3d: np.ndarray, names: list[str], fps: float,
-                  subject: Subject) -> TrialResult:
-    """One OBP trial (F, J, 3 at `fps`) through the video pipeline at 240 Hz."""
+def trial_keypoints(points_3d: np.ndarray, names: list[str], fps: float, hand: str,
+                    norm_fps: float = DEFAULT_NORM_FPS) -> Keypoints:
+    """One OBP trial (F, J, 3 at `fps`) as smoothed side-view keypoints at norm_fps (meters)."""
     xy = project_sagittal(points_3d, FORWARD_AXIS, UP_AXIS)
-    kp = smooth(resample(obp_keypoints(xy, names, subject.hand), fps, NORM_FPS), NORM_FPS)
-    events, warnings = detect_events(kp, NORM_FPS, PPM, subject)
+    return smooth(resample(obp_keypoints(xy, names, hand), fps, norm_fps), norm_fps)
+
+
+def process_trial(points_3d: np.ndarray, names: list[str], fps: float, subject: Subject,
+                  norm_fps: float = DEFAULT_NORM_FPS) -> TrialResult:
+    """One OBP trial (F, J, 3 at `fps`) through the video pipeline at norm_fps."""
+    kp = trial_keypoints(points_3d, names, fps, subject.hand, norm_fps)
+    events, warnings = detect_events(kp, norm_fps, PPM, subject)
     codes = [w.code for w in warnings]
     if None in dataclasses.astuple(events):
         return TrialResult({}, events, None, "events_not_found", codes)
     direction = throw_direction(kp, subject.hand, events)
     if direction != 1:  # every OBP pitch goes toward +X
         return TrialResult({}, events, direction, "throw_direction_not_forward", codes)
-    if not throw_wrist_is_fastest(kp, subject.hand, events.release, NORM_FPS):
+    if not throw_wrist_is_fastest(kp, subject.hand, events.release, norm_fps):
         return TrialResult({}, events, direction, "throw_wrist_not_fastest", codes)
-    metrics = compute_metrics(kp, events, NORM_FPS, PPM, subject, direction)
+    metrics = compute_metrics(kp, events, norm_fps, PPM, subject, direction)
     return TrialResult({m.name: m.value for m in metrics}, events, direction, None, codes)
 
 
@@ -230,19 +245,25 @@ def _round(x: float) -> float:
     return float(f"{x:.5g}")
 
 
-def build_norms(values: list[dict[str, float | None]], source: str, population: dict) -> dict:
+def build_norms(values: list[dict[str, float | None]], source: str, population: dict,
+                norm_fps: float) -> dict:
     """The norms document (Task 5 format plus provenance): mean and sample sd over the trials
-    of every metric whose default confidence is not "low"."""
-    norms = {}
+    of every metric whose default confidence is not "low". Below MIN_TIMING_FPS the timing
+    metrics are not computed (compute_metrics leaves them None) and get no norm."""
+    norms, not_computed = {}, []
     for name in NORM_METRICS:
         v = np.array([x[name] for x in values if x.get(name) is not None], dtype=float)
+        if not len(v) and name in TIMING_METRICS and norm_fps < MIN_TIMING_FPS:
+            not_computed.append(name)
+            continue
         sd = _round(float(np.std(v, ddof=1))) if len(v) >= 2 else float("nan")
         if not sd > 0:
             raise ValueError(f"{name}: sd must be > 0 (n = {len(v)}, sd = {sd})")
         norms[name] = {"mean": _round(float(v.mean())), "sd": sd, "n": int(len(v)),
                        "direction": norm_direction(name), "source": source}
-    return {"version": 1, "population": population, "source": source, "license": LICENSE,
-            "license_url": LICENSE_URL, "method": METHOD, "norms": norms}
+    return {"version": 1, "norm_fps": norm_fps, "population": population, "source": source,
+            "license": LICENSE, "license_url": LICENSE_URL, "method": method(norm_fps),
+            "not_computed": not_computed, "norms": norms}
 
 
 def write_norms(doc: dict, path: Path) -> None:
@@ -362,6 +383,7 @@ def _summary(doc: dict, excluded: Counter, warning_codes: Counter, fp_ms: list[f
              br_ms: list[float]) -> str:
     pop = doc["population"]
     lines = [
+        f"norm fps {doc['norm_fps']:g} Hz; not computed: {doc['not_computed'] or 'none'}",
         f"population {pop['levels']}: {pop['n_trials']} trials, {pop['n_athletes']} athletes; "
         f"skipped {pop['skipped']}; excluded levels {dict(excluded)}",
         f"event detector warnings: {dict(warning_codes)}",
@@ -376,7 +398,7 @@ def _summary(doc: dict, excluded: Counter, warning_codes: Counter, fp_ms: list[f
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Build norms_side_v1.json from OpenBiomechanics data.")
+    p = argparse.ArgumentParser(description="Build norms_side_v1_<fps>hz.json from OpenBiomechanics data.")
     p.add_argument("--landmarks", type=Path, required=True,
                    help=f"pitching_landmarks.zip from {LANDMARKS_URL}")
     p.add_argument("--metadata", type=Path, required=True,
@@ -384,9 +406,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--poi", type=Path,
                    help="poi_metrics.csv with p_throws (default: <metadata dir>/poi/poi_metrics.csv)")
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--fps", type=float, default=DEFAULT_NORM_FPS,
+                   help="analyze the trials as a video of this frame rate (packaged: 30, 60, 120, 240)")
     p.add_argument("--expected-sha256", default=LANDMARKS_SHA256)
     p.add_argument("--obp-commit", help="OBP repository commit (default: HEAD of the clone)")
     args = p.parse_args(argv)
+    if not 0 < args.fps <= OBP_FPS:
+        raise SystemExit(f"--fps must be in (0, {OBP_FPS:g}] (the OBP sampling rate), got {args.fps:g}")
 
     digest = sha256_of(args.landmarks)
     if digest != args.expected_sha256:
@@ -407,17 +433,17 @@ def main(argv: list[str] | None = None) -> int:
             excluded[info.level] += 1
             continue
         res = process_trial(trial.points, trial.names, OBP_FPS,
-                            Subject(info.height_cm, info.hand, "arm"))
+                            Subject(info.height_cm, info.hand, "arm"), args.fps)
         warning_codes.update(res.warnings)
         if res.skip_reason:
             skipped[res.skip_reason] += 1
             continue
         used.append(info)
         values.append(res.values)
-        fp_ms.append(1000 * (trial.t0 + res.events.foot_plant / NORM_FPS - trial.events["fp_100_time"]))
-        br_ms.append(1000 * (trial.t0 + res.events.release / NORM_FPS - trial.events["BR_time"]))
+        fp_ms.append(1000 * (trial.t0 + res.events.foot_plant / args.fps - trial.events["fp_100_time"]))
+        br_ms.append(1000 * (trial.t0 + res.events.release / args.fps - trial.events["BR_time"]))
 
-    doc = build_norms(values, source_string(commit), population_summary(used, skipped))
+    doc = build_norms(values, source_string(commit), population_summary(used, skipped), args.fps)
     write_norms(doc, args.out)
     print(_summary(doc, excluded, warning_codes, fp_ms, br_ms))
     return 0

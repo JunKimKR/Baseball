@@ -53,7 +53,9 @@ describe("timeline", () => {
     // lead_knee_flexion score 0 -> arm_cocking warns
     expect(phaseStatus(phase("arm_cocking"), r.metrics, noLeaks)).toBe("warn");
     // a leak inside a phase warns even if scores are fine
-    const leak: Leak = { segment: "arm", frame: 100, kind: "speed_drop", severity: 0.4, message: "x" };
+    const stride = phase("stride");
+    const mid = Math.round((stride.start + stride.end) / 2);
+    const leak: Leak = { segment: "arm", frame: mid, kind: "speed_drop", severity: 0.4, message: "x" };
     expect(phaseStatus(phase("stride"), r.metrics, [leak])).toBe("warn");
     expect(phaseStatus(phase("follow_through"), r.metrics, [leak])).toBe("ok");
     // fp_to_br and trunk_flexion_peak_vel also belong to acceleration

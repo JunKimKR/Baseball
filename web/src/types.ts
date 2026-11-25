@@ -7,11 +7,14 @@ export type CameraSide = "arm" | "glove";
 export type SegmentName = "legs" | "pelvis" | "trunk" | "arm";
 
 export interface VideoMeta {
+  /** Container frame rate: maps frame index <-> playback time. */
   fps: number;
   width: number;
   height: number;
   n_frames: number;
   duration_s: number;
+  /** Frame rate of the norms the metrics were scored against; null when nothing was scored. */
+  norm_fps: number | null;
 }
 
 export interface Subject {

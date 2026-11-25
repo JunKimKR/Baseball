@@ -16,7 +16,9 @@ const KEYS = {
     keypoints: true, events: true, phases: true, metrics: true, segments: true, energy: true,
     findings: true,
   }),
-  meta: keysOf<VideoMeta>({ fps: true, width: true, height: true, n_frames: true, duration_s: true }),
+  meta: keysOf<VideoMeta>({
+    fps: true, width: true, height: true, n_frames: true, duration_s: true, norm_fps: true,
+  }),
   subject: keysOf<Subject>({ height_cm: true, hand: true, camera_side: true }),
   warning: keysOf<AnalysisWarning>({ code: true, severity: true, message: true }),
   keypoints: keysOf<Keypoints>({ joints: true, frames: true }),
@@ -84,6 +86,7 @@ describe("sample-result fixture", () => {
   });
 
   it("covers the nested shapes it claims to (non-empty samples)", () => {
+    expect(r.warnings.length).toBeGreaterThan(0);
     expect(r.phases.length).toBeGreaterThan(0);
     expect(r.metrics.some((m) => m.norm !== null)).toBe(true);
     expect(r.energy.leaks.length).toBeGreaterThan(0);

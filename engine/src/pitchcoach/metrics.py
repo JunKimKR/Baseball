@@ -11,6 +11,11 @@ from .kinematics import (angle, angular_velocity, argmax_in, peak_frames, rotati
                          speed, trunk_flexion)
 from .models import Events, Keypoints, Metric, Subject
 
+# Frame-rate tiers (spec 3): below FULL_RATE_FPS accuracy drops (LOW_FPS); below MIN_TIMING_FPS
+# timing metrics are not computed (TIMING_DISABLED) and speeds are reference only.
+FULL_RATE_FPS = 120.0
+MIN_TIMING_FPS = 60.0
+
 
 def _d(name, label, unit, segment, confidence, timing=False):
     return {"name": name, "label": label, "unit": unit, "segment": segment,
@@ -106,13 +111,13 @@ def compute_metrics(kp: Keypoints, events: Events, fps: float, ppm: float, subje
     for d in METRIC_DEFS:
         value, conf = _clean(v.get(d["name"])), d["confidence"]
         if d["timing"]:
-            if fps < 60:
+            if fps < MIN_TIMING_FPS:
                 value = None
-            if fps < 120 and conf == "high":
+            if fps < FULL_RATE_FPS and conf == "high":
                 conf = "medium"
-        if d["unit"] == "°/s" and fps < 60:
+        if d["unit"] == "°/s" and fps < MIN_TIMING_FPS:
             conf = "low"
-        if d["unit"] == "m/s" and (fps < 60 or camera_moving):
+        if d["unit"] == "m/s" and (fps < MIN_TIMING_FPS or camera_moving):
             conf = "low"
         out.append(Metric(d["name"], d["label"], value, d["unit"], conf, d["segment"]))
     return out

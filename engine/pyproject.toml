@@ -30,7 +30,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-m \"not slow\""
-markers = ["slow: needs the MediaPipe model / network; deselect with -m 'not slow'"]
+markers = ["slow: needs the MediaPipe model / network or the local OBP data; deselect with -m 'not slow'"]
 
 [tool.setuptools.package-data]
 pitchcoach = ["data/*.json", "data/*.yaml"]

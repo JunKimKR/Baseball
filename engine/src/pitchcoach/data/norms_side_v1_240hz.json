@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "norm_fps": 240.0,
   "population": {
     "levels": [
       "college",
@@ -14,7 +15,8 @@
   "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0",
   "license": "CC BY-NC-SA 4.0",
   "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-  "method": "OBP 3D 관절 중심(360 Hz, m)을 측면으로 투영(x = X: 2루→홈, y = −Z) → 240 Hz 선형 리샘플 → pitchcoach smooth(15 Hz 저역통과) → detect_events·throw_direction·compute_metrics(영상 분석과 같은 정의) → 지표별 평균·표본표준편차",
+  "method": "OBP 3D 관절 중심(360 Hz, m)을 측면으로 투영(x = X: 2루→홈, y = −Z) → 240 Hz 선형 리샘플 → pitchcoach smooth(15 Hz 저역통과) → detect_events·throw_direction·compute_metrics(240 fps 영상 분석과 같은 정의) → 지표별 평균·표본표준편차",
+  "not_computed": [],
   "norms": {
     "stride_length_pct_height": {
       "mean": 72.748,

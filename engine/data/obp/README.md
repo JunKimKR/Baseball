@@ -1,7 +1,8 @@
-# OpenBiomechanics (OBP) pitching data → `norms_side_v1.json`
+# OpenBiomechanics (OBP) pitching data → `norms_side_v1_{30,60,120,240}hz.json`
 
-The packaged 2D side-view norms (`engine/src/pitchcoach/data/norms_side_v1.json`) are built from
-Driveline Baseball's [OpenBiomechanics Project](https://github.com/drivelineresearch/openbiomechanics)
+The packaged 2D side-view norms (`engine/src/pitchcoach/data/norms_side_v1_<fps>hz.json`, one file
+per frame rate: 30, 60, 120 and 240 Hz) are built from Driveline Baseball's
+[OpenBiomechanics Project](https://github.com/drivelineresearch/openbiomechanics)
 by `engine/scripts/build_obp_norms.py`. This file documents the data, the checks made on it, and
 how the norms were derived. Only this README is committed. The downloads live in git-ignored
 directories:
@@ -37,8 +38,8 @@ git -C data/obp/repo checkout --detach 331af0d196437cfc28c011a859a45543291099b5
 
 The OBP data and everything derived from it are licensed
 **[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)** (`LICENSE-DATA.md` in the
-OBP repository). The derived `norms_side_v1.json` is distributed under the same license, and its
-`license`, `license_url` and `source` fields say so.
+OBP repository). The derived `norms_side_v1_<fps>hz.json` files are distributed under the same
+license, and their `license`, `license_url` and `source` fields say so.
 
 Changes made to the data:
 - projection of the 3D joint centers to 2D
@@ -124,13 +125,21 @@ metadata.csv does not have. R: 328 trials, L: 83.
 
 ## How the norms are built
 
-For each trial:
+**One norm file per frame rate.** A video's frame rate changes what the pipeline measures, not
+only how precisely: `smooth()` caps its cutoff at 0.2 × fps (15 Hz at 120 fps and above, 12 Hz at
+60 fps, 6 Hz at 30 fps), and peaks are sampled once per frame. Run through the same code at
+60 fps, the reference pitchers' peak wrist speed is a median 1.84 m/s lower than at 240 fps
+(−1.7 norm sd), and at 30 fps 6.4 m/s lower. So the trials are run through the pipeline as a video
+of each packaged rate (`--fps` 30, 60, 120, 240), and a video is scored against the norms of its
+own rate (below).
+
+For each trial and norm rate:
 1. Projection: (x, y) = (X, −Z), in meters, with ppm = 1.
 2. The 12 landmarks go into the MediaPipe slots above.
-3. Linear resampling from 360 Hz to 240 Hz.
-4. `smooth()` with its defaults (15 Hz), as for a 240 fps video.
+3. Linear resampling from 360 Hz to the norm rate (30, 60, 120 or 240 Hz).
+4. `smooth()` with its defaults, as for a video of that rate.
 5. Our `detect_events()` and `throw_direction()`.
-6. `compute_metrics()`.
+6. `compute_metrics()` at that rate.
 
 A trial is skipped, and counted, if any of these hold:
 - an event is not found
@@ -141,35 +150,68 @@ OBP's own events are used only for the agreement table below.
 
 **Population**: playing level college or above (`college`, `independent`, `milb`); `high_school`
 is excluded. That gives **379 trials, 93 athletes**: 310 trials RHP, 69 LHP; heights
-167.6–203.2 cm. No trials were skipped.
+167.6–203.2 cm.
+
+**Skipped trials per norm rate** (each norm file records them in `population`):
+
+| Norm rate | Trials used | Athletes | Skipped (event not found) |
+|---|---|---|---|
+| 240 Hz | 379 | 93 | 0 (0 %) |
+| 120 Hz | 379 | 93 | 0 (0 %) |
+| 60 Hz | 379 | 93 | 0 (0 %) |
+| 30 Hz | 311 | 86 | 68 (17.9 %) |
+
+At 30 Hz every miss is the foot plant (the leg-lift peak and MER are searched from it; the release
+is always found). Our plant rule needs the lead ankle below 0.5 m/s for 3 frames before release,
+which is 100 ms at 30 fps, and the missed trials are mostly quick deliveries: their 240 Hz
+FP→BR is 96 ± 29 ms against 113 ± 19 ms for the rest. Their other 240 Hz values differ little
+(stride 71.7 vs 73.0 %, knee flexion at plant 44.2 vs 46.9°, wrist speed 19.5 vs 19.4 m/s).
+So the 30 Hz norms describe the pitches whose foot plant a 30 fps video can show.
 
 **Norms**: every metric whose default confidence is not `low` (12 metrics), with the mean and
 sample sd over the trials. `direction` is `higher` for speeds, angular velocities, stride and
-lead-knee extension, and `target` for everything else. Three `low` metrics get no norm and no
-score; they are reference only:
+lead-knee extension, and `target` for everything else. Below 60 fps `compute_metrics()` does not
+compute timing metrics, so the 30 Hz file has no timing norms (its `not_computed` field lists
+them). Three `low` metrics get no norm and no score; they are reference only:
 - the pelvis and shoulder rotation proxies
 - `elbow_ext_peak_vel_dps` (see below)
 
-| Metric | Mean | SD | Direction |
-|---|---|---|---|
-| `stride_length_pct_height` | 72.75 % | 4.68 | higher |
-| `lead_knee_flexion_fp_deg` | 46.4° | 8.5 | target |
-| `lead_knee_extension_deg` | 2.6° | 12.6 | higher |
-| `pelvis_peak_speed_ms` | 2.39 m/s | 0.35 | higher |
-| `trunk_flexion_br_deg` | 26.3° | 8.3 | target |
-| `trunk_flexion_peak_vel_dps` | 342°/s | 59 | higher |
-| `shoulder_peak_speed_ms` | 3.87 m/s | 0.46 | higher |
-| `wrist_peak_speed_ms` | 19.45 m/s | 1.09 | higher |
-| `fp_to_br_ms` | 110.1 ms | 22.1 | target |
-| `gap_pelvis_shoulder_ms` | 32.2 ms | 64.2 | target |
-| `gap_shoulder_elbow_ms` | 86.5 ms | 19.5 | target |
-| `gap_elbow_wrist_ms` | 43.3 ms | 3.4 | target |
+Mean ± sd per norm rate (the build prints these):
+
+| Metric | 30 Hz | 60 Hz | 120 Hz | 240 Hz | Direction |
+|---|---|---|---|---|---|
+| `stride_length_pct_height` (%) | 71.1 ± 4.2 | 71.9 ± 4.5 | 72.5 ± 4.7 | 72.7 ± 4.7 | higher |
+| `lead_knee_flexion_fp_deg` (°) | 51.8 ± 7.6 | 49.4 ± 7.8 | 47.5 ± 8.2 | 46.4 ± 8.5 | target |
+| `lead_knee_extension_deg` (°) | 7.7 ± 10.2 | 6.1 ± 10.8 | 3.7 ± 11.8 | 2.6 ± 12.6 | higher |
+| `pelvis_peak_speed_ms` (m/s) | 2.29 ± 0.32 | 2.36 ± 0.35 | 2.38 ± 0.35 | 2.39 ± 0.35 | higher |
+| `trunk_flexion_br_deg` (°) | 26.6 ± 8.8 | 26.7 ± 8.5 | 26.3 ± 8.4 | 26.3 ± 8.3 | target |
+| `trunk_flexion_peak_vel_dps` (°/s) | 286 ± 53 | 328 ± 57 | 340 ± 59 | 342 ± 59 | higher |
+| `shoulder_peak_speed_ms` (m/s) | 3.40 ± 0.39 | 3.64 ± 0.48 | 3.80 ± 0.46 | 3.87 ± 0.46 | higher |
+| `wrist_peak_speed_ms` (m/s) | 12.99 ± 0.85 | 17.60 ± 0.98 | 19.22 ± 1.07 | 19.45 ± 1.09 | higher |
+| `fp_to_br_ms` (ms) | — | 100.3 ± 21.0 | 105.4 ± 21.6 | 110.1 ± 22.1 | target |
+| `gap_pelvis_shoulder_ms` (ms) | — | 31.6 ± 62.9 | 31.9 ± 63.7 | 32.2 ± 64.2 | target |
+| `gap_shoulder_elbow_ms` (ms) | — | 86.6 ± 19.4 | 86.8 ± 19.6 | 86.5 ± 19.5 | target |
+| `gap_elbow_wrist_ms` (ms) | — | 46.3 ± 7.7 | 43.1 ± 4.1 | 43.3 ± 3.4 | target |
+
+**Which norms a video gets** (`pitchcoach.norms.select_norm_fps`): the largest norm rate not above
+the video's analysis fps, and the 30 Hz norms below 30 fps. A 1 % tolerance makes NTSC-style rates
+(29.97, 59.94, 119.88, 239.76) use their nominal norms: without it a 119.88 fps video would be
+scored against the 60 Hz norms, whose wrist speed is 1.6 m/s (1.5 sd) lower. The result records the
+rate used as `meta.norm_fps`.
+
+**Effect on the reference pitchers.** `arm_speed_loss` (wrist speed z < −1.5, or a speed-drop leak
+at z < −1) on the 379 reference trials analyzed as videos of each rate: 17.4 % at 240 Hz, 17.4 % at
+120 Hz and 16.6 % at 60 Hz with the matching norms; the median wrist-speed z is +0.11 to +0.14. The
+slow test `test_fps_matched_norms_keep_reference_finding_rates` checks this and prints the numbers
+(`pytest -m slow -s tests/test_build_obp_norms.py`). One-off measurement, not reproducible with
+the committed code (it scored every rate against the 240 Hz norms, as before this change): 78.1 %
+at 60 Hz and 21.9 % at 120 Hz, median wrist z −1.61 at 60 Hz.
 
 The projected metrics track OBP's own 3D values: stride r = 0.82 (OBP's
 `stride_length` mean is 83.5 %), trunk flexion at release r = 0.79 (OBP mean 34.3°), and lead-knee
 extension r = 0.74.
 
-### Our events vs OBP's events (379 trials; ours − OBP, ms)
+### Our events vs OBP's events (240 Hz, 379 trials; ours − OBP, ms)
 
 | Comparison | Median | IQR | n |
 |---|---|---|---|
@@ -177,6 +219,11 @@ extension r = 0.74.
 | foot plant vs `fp_10_time` (first contact) | +32.0 | +26.4 … +44.4 | 371 |
 | release vs `BR_time` | −12.5 | −13.9 … −11.1 | 379 |
 | leg-lift peak vs `pkh_time` (all 411 trials) | 0.0 | −1.4 … +1.4 | 411 |
+
+At the other norm rates the build prints (medians): foot plant vs `fp_100_time` +16.6 ms at 120 Hz,
++22.3 ms at 60 Hz and +33.4 ms at 30 Hz; release vs `BR_time` −11.1, −11.1 and −13.9 ms. Coarser
+frames make our foot plant later, which is why `fp_to_br_ms` falls from 110 ms (240 Hz) to 100 ms
+(60 Hz).
 
 What follows from these differences:
 
@@ -230,24 +277,17 @@ and shown, but not scored.
 
 ### Timing scores at video frame rates
 
-**Why.** The `gap_elbow_wrist_ms` norm (sd 3.45 ms) is narrower than one frame: 4.17 ms at
-240 fps, 16.7 ms at 60 fps. Without a correction, ±1 frame of jitter in the peak frame decides
-its score.
+**Why.** A timing value is the difference of two frame times, each quantized to 1000/fps ms; each
+error is uniform, with variance q²/12, so q²/6 for the difference. A norm narrower than a frame
+(the 240 Hz `gap_elbow_wrist_ms` sd is 3.45 ms; one 60 fps frame is 16.7 ms) would let ±1 frame
+of jitter decide the score.
 
-**Formula.** A timing value is the difference of two frame times, each quantized to 1000/fps ms;
-each error is uniform, with variance q²/12. So `score_metrics(metrics, norms, fps)` scores every
-metric with unit `ms` against sd_eff = √(sd² + (1000/fps)²/6). The attached norm keeps the
-population sd. The OBP sd already contains the 240 Hz quantum, so the correction is slightly
-conservative at 240 fps.
-
-**Effect on `gap_elbow_wrist_ms`** (each reachable value: score without the correction → with
-it):
-
-| fps | sd_eff | Scores |
-|---|---|---|
-| 240 | 3.85 ms | 37.5 ms: 9 → 13; 41.7 ms: 63 → 66; 45.8 ms: 47 → 52; 50.0 ms: 5 → 8 |
-| 120 | 4.84 ms | 41.7 ms: 63 → 73; 50.0 ms: 5 → 17 |
-| 60 | 7.63 ms | 33.3 ms: 0 → 19; 50.0 ms: 5 → 38 |
+**Formula.** Each norm file is built at its own rate, so its sd already contains that rate's
+quantum (the 60 Hz `gap_elbow_wrist_ms` sd is 7.7 ms). `score_metrics(metrics, norms, fps,
+norm_fps)` therefore widens a timing metric (unit `ms`) only by the quantum the video adds beyond
+the norms': sd_eff = √(sd² + max(0, (1000/fps)² − (1000/norm_fps)²)/6). A video at or above its
+norm rate adds nothing; within the 1 % tolerance (e.g. 119.88 fps against the 120 Hz norms) the
+addition is negligible. The attached norm keeps the population sd.
 
 ### Caveats for using the norms
 
@@ -263,15 +303,23 @@ it):
 
 ## Rebuilding (from `engine/`)
 
+All four norm files, one run per rate:
+
 ```bash
-../.venv/bin/python -I scripts/build_obp_norms.py \
-  --landmarks data/obp/raw/pitching_landmarks.zip \
-  --metadata data/obp/repo/baseball_pitching/data/metadata.csv \
-  --out src/pitchcoach/data/norms_side_v1.json
+for fps in 30 60 120 240; do
+  ../.venv/bin/python -I scripts/build_obp_norms.py --fps $fps \
+    --landmarks data/obp/raw/pitching_landmarks.zip \
+    --metadata data/obp/repo/baseball_pitching/data/metadata.csv \
+    --out src/pitchcoach/data/norms_side_v1_${fps}hz.json
+done
 ../.venv/bin/python -m pytest tests/test_build_obp_norms.py -v
+../.venv/bin/python -m pytest -m slow -s tests/test_build_obp_norms.py   # regression on the OBP trials
 ```
 
 - The script checks the zip's sha256. It reads the handedness from
   `<metadata dir>/poi/poi_metrics.csv` (override with `--poi`) and the repository commit from the
-  clone (`--obp-commit`). It prints the population, skips, event agreement and the norms table.
-- Run as shown, it should reproduce the committed file byte for byte.
+  clone (`--obp-commit`). It prints the norm rate, population, skips, event agreement and the norms
+  table.
+- `--fps` (default 240, at most 360) is the frame rate the trials are analyzed at; the file
+  records it as `norm_fps`, and `method` names the smoothing cutoff used at that rate.
+- Run as shown, it reproduces the committed files byte for byte.

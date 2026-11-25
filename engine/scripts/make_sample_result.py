@@ -38,9 +38,14 @@ def _round(o):
     return o
 
 
+# 60 fps, a common phone rate: against the fps-matched norms the synthetic pitch then shows what
+# the web tests need to see, i.e. a warning (LOW_FPS), a leak and findings with and without causes.
+SAMPLE_FPS = 60
+
+
 def main() -> None:
-    kp, _ = make_pitch(fps=120)
-    meta = VideoMeta(fps=120.0, width=1080, height=1920, n_frames=kp.xy.shape[0])
+    kp, _ = make_pitch(fps=SAMPLE_FPS)
+    meta = VideoMeta(fps=float(SAMPLE_FPS), width=1080, height=1920, n_frames=kp.xy.shape[0])
     analyze_mod.camera_motion_ratio = lambda p, k: 0.0  # no real video to inspect
     res = analyze(Path("sample.mp4"), Subject(185.0, "R", "arm"), FakeEstimator(kp, meta))
     OUT.parent.mkdir(parents=True, exist_ok=True)

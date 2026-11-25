@@ -8,6 +8,12 @@ from scipy.signal import butter, filtfilt
 from .models import Keypoints
 
 _ORDER = 4
+DEFAULT_CUTOFF_HZ = 15.0
+
+
+def effective_cutoff_hz(fps: float, cutoff_hz: float = DEFAULT_CUTOFF_HZ) -> float:
+    """Low-pass cutoff smooth() uses at `fps`: cutoff_hz, capped at 0.2 x fps (0.4 x Nyquist)."""
+    return min(cutoff_hz, 0.4 * fps / 2)
 
 
 def _interpolate(col: np.ndarray, ok: np.ndarray) -> np.ndarray:
@@ -17,7 +23,7 @@ def _interpolate(col: np.ndarray, ok: np.ndarray) -> np.ndarray:
 
 
 def smooth(
-    kp: Keypoints, fps: float, cutoff_hz: float = 15.0, vis_threshold: float = 0.5
+    kp: Keypoints, fps: float, cutoff_hz: float = DEFAULT_CUTOFF_HZ, vis_threshold: float = 0.5
 ) -> Keypoints:
     """Return smoothed coordinates; vis is returned unchanged.
 
@@ -28,7 +34,7 @@ def smooth(
     xy = np.array(kp.xy, dtype=float)
     vis = np.asarray(kp.vis)
     n_frames = xy.shape[0]
-    cutoff = min(cutoff_hz, 0.4 * fps / 2)
+    cutoff = effective_cutoff_hz(fps, cutoff_hz)
     b, a = butter(_ORDER, cutoff / (fps / 2), btype="low")
     padlen = 3 * max(len(a), len(b))
     can_filter = n_frames > padlen
