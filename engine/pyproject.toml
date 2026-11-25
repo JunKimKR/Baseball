@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pitchcoach"
+version = "0.1.0"
+description = "Side-view pitching video analysis engine"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "scipy",
+    "opencv-python",
+    "mediapipe",
+    "pyyaml",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx"]
+
+[project.scripts]
+pitchcoach = "pitchcoach.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
