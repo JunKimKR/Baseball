@@ -1,0 +1,7 @@
+{"version": 1, "population": "test", "source": "test", "extra": {"x": 1},
+ "norms": {
+  "hi": {"mean": 10.0, "sd": 2.0, "direction": "higher", "source": "t"},
+  "lo": {"mean": 10.0, "sd": 2.0, "direction": "lower", "source": "t"},
+  "tg": {"mean": 10.0, "sd": 2.0, "direction": "target", "source": "t"},
+  "bad": {"mean": 10.0, "sd": 0.0, "direction": "higher", "source": "t"}
+ }}
