@@ -56,6 +56,11 @@ describe("timeline", () => {
     const leak: Leak = { segment: "arm", frame: 100, kind: "speed_drop", severity: 0.4, message: "x" };
     expect(phaseStatus(phase("stride"), r.metrics, [leak])).toBe("warn");
     expect(phaseStatus(phase("follow_through"), r.metrics, [leak])).toBe("ok");
+    // fp_to_br and trunk_flexion_peak_vel also belong to acceleration
+    for (const name of ["fp_to_br_ms", "trunk_flexion_peak_vel_dps"]) {
+      const ms = r.metrics.map((x) => ({ ...x, score: x.name === name ? 10 : 100 }));
+      expect(phaseStatus(phase("acceleration"), ms, noLeaks)).toBe("warn");
+    }
     // null scores never warn
     const nulls = r.metrics.map((x) => ({ ...x, score: null }));
     expect(phaseStatus(phase("acceleration"), nulls, noLeaks)).toBe("ok");

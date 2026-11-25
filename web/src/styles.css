@@ -134,3 +134,11 @@ button.link { width: auto; min-height: 36px; padding: 0 12px; background: transp
   .metrics td[data-label]::before { content: attr(data-label) " "; color: var(--text-muted); font-size: 0.75rem; }
   .metrics td.num { white-space: normal; }
 }
+.warn-item { font-size: 0.95rem; }
+.warn-item.warn { background: rgba(250, 204, 21, 0.14); border-left-width: 6px; }
+.warn-item.error { background: rgba(255, 59, 48, 0.16); border-left-width: 6px; }
+.warn-item strong { margin-right: 6px; }
+.warn-item.warn strong { color: var(--energy-high); }
+.warn-item.error strong { color: var(--leak); }
+.phase-list li { display: block; }
+button.phase-btn { width: 100%; min-height: 44px; text-align: left; padding: 0 12px; font-weight: 500; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); }

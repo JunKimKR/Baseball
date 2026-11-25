@@ -48,6 +48,16 @@ describe("AnalysisPage", () => {
     expect(screen.queryByTestId("overlay")).not.toBeInTheDocument();
     expect(screen.getByText("투수를 인식하지 못했습니다.")).toBeInTheDocument();
     expect(screen.getByText("촬영 가이드")).toBeInTheDocument();
+    expect(screen.getByText("트레이닝 코치와 상의 후 적용하세요.")).toBeInTheDocument();
+  });
+
+  it("lists errors first, then warnings, then info", () => {
+    const w = (code: string, severity: "info" | "warn" | "error") => ({ code, severity, message: `m-${code}` });
+    const mixed = { ...r, warnings: [w("I", "info"), w("W", "warn"), w("E", "error")] };
+    impl = (_id, onUpdate) => (onUpdate(done(mixed)), () => {});
+    render(<AnalysisPage id="x" />);
+    const items = screen.getAllByText(/^m-/).map((e) => /m-\w/.exec(e.textContent ?? "")![0]);
+    expect(items).toEqual(["m-E", "m-W", "m-I"]);
   });
 
   it("renders the full page with reference-only scores", () => {

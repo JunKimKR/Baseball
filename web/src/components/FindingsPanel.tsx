@@ -33,11 +33,13 @@ function Source({ text }: { text: string }) {
 function CauseCard({
   cause,
   answer,
+  groupId,
   state,
   onAnswer,
 }: {
   cause: Cause;
   answer: string | undefined;
+  groupId: string;
   state: "possible" | "likely" | "dim";
   onAnswer: (optionId: string) => void;
 }) {
@@ -56,7 +58,7 @@ function CauseCard({
           <label className="radio" key={o.id}>
             <input
               type="radio"
-              name={`st-${st.id}`}
+              name={`st-${groupId}-${st.id}`}
               checked={answer === o.id}
               onChange={() => onAnswer(o.id)}
             />
@@ -115,6 +117,7 @@ export default function FindingsPanel({ findings, analysisId }: { findings: Find
                   key={c.id}
                   cause={c}
                   answer={answers[c.self_test.id]}
+                  groupId={f.issue_id}
                   state={likely.size === 0 ? "possible" : likely.has(c.id) ? "likely" : "dim"}
                   onAnswer={(o) => answer(c.self_test.id, o)}
                 />

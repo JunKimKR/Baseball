@@ -56,6 +56,8 @@ export const METRIC_PHASE: Record<string, string> = {
   lead_knee_extension_deg: "arm_cocking",
   trunk_flexion_br_deg: "acceleration",
   wrist_peak_speed_ms: "acceleration",
+  fp_to_br_ms: "acceleration",
+  trunk_flexion_peak_vel_dps: "acceleration",
   elbow_ext_peak_vel_dps: "acceleration",
   gap_elbow_wrist_ms: "acceleration",
   gap_pelvis_shoulder_ms: "arm_cocking",

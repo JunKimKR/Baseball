@@ -9,10 +9,9 @@ export default function SegmentScores({ segments }: { segments: SegmentScore[] }
         <div className="seg-row" key={s.segment}>
           <span>{s.label}</span>
           <div className="seg-track" role="presentation">
-            <div
-              className={`seg-fill${s.score === null ? " ref" : ""}`}
-              style={{ width: `${s.score === null ? 100 : Math.max(0, Math.min(100, s.score))}%` }}
-            />
+            {s.score !== null && (
+              <div className="seg-fill" style={{ width: `${Math.max(0, Math.min(100, s.score))}%` }} />
+            )}
           </div>
           <span className="seg-val">
             {s.score === null ? "참고값" : Math.round(s.score)}{" "}

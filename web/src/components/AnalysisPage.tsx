@@ -14,12 +14,14 @@ function fmt(v: number): string {
 
 function Warnings({ result }: { result: AnalysisResult }) {
   if (result.warnings.length === 0) return null;
-  const sev = { error: "오류", warn: "주의", info: "안내" } as const;
+  const sev = { error: "⛔ 오류", warn: "⚠ 주의", info: "ℹ 안내" } as const;
+  const order = { error: 0, warn: 1, info: 2 } as const;
+  const sorted = [...result.warnings].sort((a, b) => order[a.severity] - order[b.severity]);
   return (
     <section className="card" aria-label="경고">
       <h2>확인할 점</h2>
       <ul className="warn-list">
-        {result.warnings.map((w) => (
+        {sorted.map((w) => (
           <li key={w.code} className={`warn-item ${w.severity}`}>
             <strong>{sev[w.severity]}</strong> {w.message}
           </li>
@@ -106,7 +108,7 @@ export default function AnalysisPage({ id }: { id: string }) {
 
   const result = state?.status === "done" ? state.result : null;
   const hasError = result?.warnings.some((w) => w.severity === "error") ?? false;
-  const warnFirst = result?.warnings.filter((w) => w.severity === "warn") ?? [];
+  const hasWarn = result?.warnings.some((w) => w.severity === "warn") ?? false;
 
   let body;
   if (loadError) {
@@ -133,12 +135,13 @@ export default function AnalysisPage({ id }: { id: string }) {
       <>
         <Warnings result={result} />
         <FilmingGuide />
+        <p className="disclaimer">트레이닝 코치와 상의 후 적용하세요.</p>
       </>
     );
   } else {
     body = (
       <>
-        {warnFirst.length > 0 && (
+        {hasWarn && (
           <p className="muted section-note">아래 경고 때문에 일부 값은 비어 있거나 참고용입니다.</p>
         )}
         <Warnings result={result} />

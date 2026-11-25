@@ -66,4 +66,17 @@ describe("FindingsPanel", () => {
     expect(screen.getByText("운동B")).toBeInTheDocument();
     expect(screen.queryByText("운동A")).not.toBeInTheDocument();
   });
+
+  it("shares one answer across findings with the same self-test, in separate radio groups", async () => {
+    const user = userEvent.setup();
+    const a = twoCause();
+    const b = { ...twoCause(), issue_id: "y", title: "다른 문제" };
+    render(<FindingsPanel analysisId="id7" findings={[a, b]} />);
+    const radios = screen.getAllByLabelText("a 해당") as HTMLInputElement[];
+    expect(radios).toHaveLength(2);
+    expect(radios[0].name).not.toBe(radios[1].name);
+    await user.click(radios[0]);
+    expect(radios[0].checked).toBe(true);
+    expect(radios[1].checked).toBe(true);
+  });
 });

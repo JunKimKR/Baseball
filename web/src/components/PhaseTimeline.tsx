@@ -37,7 +37,7 @@ export default function PhaseTimeline({ result, currentFrame, onSeek }: Props) {
   return (
     <section className="card">
       <h2>동작 구간</h2>
-      <p className="muted section-note">구간을 누르면 해당 프레임으로 이동합니다.</p>
+      <p className="muted section-note">구간을 누르면 해당 프레임으로 이동합니다. 아래 목록으로도 이동할 수 있습니다.</p>
       <div className="timeline">
         <div className="tl-bar">
           {rects.map((r) => {
@@ -94,8 +94,10 @@ export default function PhaseTimeline({ result, currentFrame, onSeek }: Props) {
           const st = status(p.name);
           return (
             <li key={p.name}>
-              <span className={st === "warn" ? "status-warn" : "status-ok"}>{st === "warn" ? "▲" : "✓"}</span> {p.label}{" "}
-              <span className="muted">프레임 {p.start}–{p.end}</span>
+              <button type="button" className="phase-btn" onClick={() => onSeek(p.start)}>
+                <span className={st === "warn" ? "status-warn" : "status-ok"}>{st === "warn" ? "▲ 점검" : "✓ 양호"}</span>{" "}
+                {p.label} <span className="muted">프레임 {p.start}–{p.end}</span>
+              </button>
             </li>
           );
         })}
