@@ -61,3 +61,12 @@ def test_quality_uses_capture_fps():
     assert [w.code for w in check_quality(short, _kp(120), SUBJ, KEY)] == ["TOO_SHORT"]
     # and a clip captured at 30 fps but labeled 240 gets the low-fps warnings
     assert _codes(VideoMeta(240, 1080, 1920, 480, capture_fps=30.0), _kp(480)) == ["LOW_FPS", "TIMING_DISABLED"]
+
+
+def test_quality_bad_fps_is_an_error_not_a_crash():
+    for fps in (0.0, -30.0, float("nan"), float("inf")):
+        ws = check_quality(VideoMeta(fps, 1080, 1920, 480), _kp(480), SUBJ, KEY)
+        assert [(w.code, w.severity) for w in ws] == [("BAD_FPS", "error")], fps
+        assert "촬영 fps" in ws[0].message
+    # a valid capture fps is the analysis fps, so it rescues a file without one
+    assert _codes(VideoMeta(0.0, 1080, 1920, 480, capture_fps=240.0), _kp(480)) == []

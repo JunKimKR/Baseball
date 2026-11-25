@@ -12,7 +12,8 @@
   ```bash
   sudo apt-get install -y libegl1 libgles2 libgl1
   ```
-- 첫 분석 때 MediaPipe 포즈 모델(약 30 MB)을 내려받아 `~/.cache/pitchcoach/`에 저장합니다(인터넷 필요, 이후에는 재사용).
+- 첫 분석 때 MediaPipe 포즈 모델(약 30 MB)을 내려받아 `~/.cache/pitchcoach/`에 저장합니다(인터넷 필요, 이후에는 재사용). 모델은 버전 1(`…/pose_landmarker_heavy/float16/1/…`)로 고정되어 있고, 받은 파일과 저장된 파일 모두 sha256 `64437af838a65d18e5ba7a0d39b465540069bc8aae8308de3e318aad31fcbc7b`로 확인합니다(다르면 다시 받고, 받은 파일도 다르면 분석을 멈춥니다).
+- 엔진 의존성은 개발·검증한 버전으로 `engine/pyproject.toml`에 고정되어 있습니다.
 
 ## 설치
 
@@ -51,8 +52,9 @@ npm --prefix web run dev                  # 터미널 2: Vite 개발 서버 (/ap
 ### 테스트
 
 ```bash
-cd engine && ../.venv/bin/python -m pytest      # 엔진 (MediaPipe/네트워크가 필요한 slow 테스트는 기본 제외)
-npm --prefix web test                           # 웹
+(cd engine && ../.venv/bin/python -m pytest)           # 엔진 (slow 테스트는 기본 제외)
+(cd engine && ../.venv/bin/python -m pytest -m slow)   # slow: MediaPipe 모델(네트워크), 로컬 OBP 데이터, samples/의 본인 영상이 필요하며 없으면 건너뜀
+npm --prefix web test                                  # 웹 (저장소 루트에서)
 ```
 
 ## 촬영 가이드
@@ -68,8 +70,9 @@ npm --prefix web test                           # 웹
 
 - **120 fps 미만**: 정확도가 떨어진다는 경고(`LOW_FPS`)가 표시되고, 각도·타이밍 지표의 신뢰도는 최대 "중간"입니다. 이벤트 시각이 프레임 단위로 뭉개지기 때문입니다.
 - **60 fps 미만**: 타이밍 지표와 에너지 순서 누수 판정이 꺼지고(`TIMING_DISABLED`), 속도·각속도·각도 지표는 참고값(신뢰도 낮음, 점수 없음)입니다. 30 fps 영상은 보통 보폭 정도만 점수가 나옵니다. 여러 번 던진 것 같다는 판정(`MULTIPLE_PITCHES`)도 하지 않습니다(릴리스 속도 정점이 뭉개져 투구 뒤 걷는 동작과 구분되지 않기 때문).
-- **카메라가 움직임(패닝·손으로 든 촬영)**: `CAMERA_MOTION` 경고가 뜨고 선속도 지표와 릴리스 시 몸통 숙임(카메라가 기울면 함께 기울어짐)은 참고값이 됩니다. 이 경우 발 착지(foot plant) 검출이 대개 실패합니다. 저장소의 30 fps 손떨림 샘플로 확인했을 때 릴리스만 검출되었습니다.
+- **카메라가 움직임(패닝·손으로 든 촬영)**: `CAMERA_MOTION` 경고가 뜨고 선속도 지표와 릴리스 시 몸통 숙임(카메라가 기울면 함께 기울어짐)은 참고값이 됩니다. 이 경우 발 착지(foot plant) 검출이 대개 실패합니다. 개발 중 30 fps 손떨림 영상(사용자 본인의 클립으로 저장소에는 없음, `samples/`는 git이 무시)으로 확인했을 때 릴리스만 검출되었습니다.
 - **처음에 똑바로 서 있지 않음(또는 카메라 거리·확대가 바뀜)**: 처음 0.5초 자세의 코~발목 거리가 영상 전체에서 큰 쪽(95백분위)의 90%보다 작으면 `SCALE_UNCERTAIN` 경고가 뜨고, 키로 환산하는 보폭과 속도(m/s) 지표는 참고값이 됩니다.
+- **영상 파일의 fps를 읽을 수 없음(0 또는 없음)**: 분석하지 않고 `BAD_FPS` 오류를 표시합니다. "촬영 fps"를 입력해 다시 올리면 그 값으로 분석하고, 재생 위치도 그 fps로 맞춥니다(`PLAYBACK_FPS_ASSUMED` 안내).
 
 ## 한계 (꼭 읽어 주세요)
 

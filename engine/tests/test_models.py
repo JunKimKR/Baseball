@@ -95,3 +95,9 @@ def test_meta_capture_fps_defaults_to_container_fps():
     assert slowmo.analysis_fps == 240.0 and slowmo.duration_s == 2.0  # playback duration
     d = AnalysisResult(meta=slowmo, subject=Subject(180.0, "R", "arm")).to_dict()["meta"]
     assert d["fps"] == 30.0 and d["capture_fps"] == 240.0 and d["norm_fps"] is None
+
+
+def test_meta_with_unusable_fps_is_json_safe():
+    d = AnalysisResult(meta=VideoMeta(float("nan"), 10, 10, 30), subject=Subject(180.0, "R", "arm")).to_dict()
+    assert (d["meta"]["fps"], d["meta"]["capture_fps"], d["meta"]["duration_s"]) == (0.0, None, 0.0)
+    json.dumps(d, allow_nan=False)

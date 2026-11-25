@@ -7,6 +7,7 @@ import FindingsPanel from "./FindingsPanel";
 import PhaseTimeline from "./PhaseTimeline";
 import SegmentScores from "./SegmentScores";
 import VideoOverlay from "./VideoOverlay";
+import type { SeekTarget } from "./VideoOverlay";
 
 function fmt(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
@@ -97,7 +98,7 @@ export default function AnalysisPage({ id }: { id: string }) {
   const [state, setState] = useState<AnalysisState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [frame, setFrame] = useState(0);
-  const [seekTo, setSeekTo] = useState<number | undefined>(undefined);
+  const [seekTo, setSeekTo] = useState<SeekTarget | undefined>(undefined);
 
   useEffect(() => {
     setState(null);
@@ -113,10 +114,12 @@ export default function AnalysisPage({ id }: { id: string }) {
     });
   }, [id]);
 
-  const onFrame = useCallback((f: number) => {
-    setFrame(f);
-    setSeekTo((t) => (t === f ? undefined : t));
-  }, []);
+  const onFrame = useCallback((f: number) => setFrame(f), []);
+  // a fresh object per request, so choosing the same phase again seeks again
+  const onSeek = useCallback(
+    (f: number) => setSeekTo((prev) => ({ frame: f, nonce: (prev?.nonce ?? 0) + 1 })),
+    [],
+  );
 
   const result = state?.status === "done" ? state.result : null;
   const hasError = result?.warnings.some((w) => w.severity === "error") ?? false;
@@ -130,7 +133,7 @@ export default function AnalysisPage({ id }: { id: string }) {
   } else if (state.status === "processing") {
     body = (
       <>
-        <p className="muted" role="status">분석 중입니다. 보통 30초 안팎이 걸립니다…</p>
+        <p className="muted" role="status">분석 중입니다. 영상 길이와 fps에 따라 수십 초~수 분 걸립니다…</p>
         <div className="progress" role="progressbar" aria-label="분석 진행 중" />
       </>
     );
@@ -158,9 +161,9 @@ export default function AnalysisPage({ id }: { id: string }) {
         )}
         <Warnings result={result} />
         <section className="card">
-          <VideoOverlay result={result} videoSrc={videoUrl(id)} seekToFrame={seekTo} onFrame={onFrame} />
+          <VideoOverlay result={result} videoSrc={videoUrl(id)} seekTo={seekTo} onFrame={onFrame} />
         </section>
-        <PhaseTimeline result={result} currentFrame={frame} onSeek={setSeekTo} />
+        <PhaseTimeline result={result} currentFrame={frame} onSeek={onSeek} />
         <SegmentScores segments={result.segments} />
         <MetricsTable result={result} />
         <FindingsPanel findings={result.findings} metrics={result.metrics} analysisId={id} />

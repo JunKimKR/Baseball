@@ -73,7 +73,7 @@ function CauseCard({
       </h4>
       <Source text={cause.source} label="원인 근거" />
       <fieldset className="selftest">
-        <legend>30초 자가 테스트: {st.instruction}</legend>
+        <legend>자가 테스트: {st.instruction}</legend>
         {st.options.map((o) => (
           <label className="radio" key={o.id}>
             <input

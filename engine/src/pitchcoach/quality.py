@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 from .metrics import FULL_RATE_FPS, MIN_TIMING_FPS
@@ -12,6 +14,12 @@ VIS_THRESHOLD = 0.5
 MIN_DURATION_S = 1.0
 MAX_GAP_S = 0.1
 MIN_PERSON_FRACTION = 0.8
+BAD_FPS_MESSAGE = ("영상 파일에서 프레임 레이트(fps)를 읽지 못했습니다. 올릴 때 '촬영 fps'에 촬영할 때의 "
+                   "fps(예: 240)를 입력해 다시 올려 주세요.")
+
+
+def valid_fps(fps: float) -> bool:
+    return math.isfinite(fps) and fps > 0
 
 
 def check_quality(
@@ -21,6 +29,8 @@ def check_quality(
     capture fps of a slow-motion export), not the container's playback fps."""
     warnings: list[AnalysisWarning] = []
     fps = meta.analysis_fps
+    if not valid_fps(fps):  # every check below needs it (no ZeroDivisionError / NaN)
+        return [AnalysisWarning("BAD_FPS", "error", BAD_FPS_MESSAGE)]
 
     if fps < FULL_RATE_FPS:
         warnings.append(AnalysisWarning(

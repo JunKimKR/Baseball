@@ -8,20 +8,27 @@ import type { Pt, Segment } from "../render/skeleton";
 
 const SPEEDS = [0.1, 0.25, 0.5, 1];
 
+/** A seek request; a new nonce re-seeks even to the same frame. */
+export interface SeekTarget {
+  frame: number;
+  nonce: number;
+}
+
 interface Props {
   result: AnalysisResult;
   videoSrc: string;
-  seekToFrame?: number;
+  seekTo?: SeekTarget;
   onFrame?: (frame: number) => void;
 }
 
-export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }: Props) {
+export default function VideoOverlay({ result, videoSrc, seekTo, onFrame }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [speed, setSpeed] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [frame, setFrame] = useState(0);
+  const [videoError, setVideoError] = useState(false);
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
   const notify = useMemo(() => notifyOnChange((f) => onFrameRef.current?.(f)), []);
@@ -168,8 +175,10 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
   );
 
   useEffect(() => {
-    if (seekToFrame !== undefined) seek(seekToFrame);
-  }, [seekToFrame, seek]);
+    if (seekTo !== undefined) seek(seekTo.frame);
+  }, [seekTo, seek]);
+
+  useEffect(() => setVideoError(false), [videoSrc]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.playbackRate = speed;
@@ -202,9 +211,15 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
           preload="auto"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
+          onError={() => setVideoError(true)}
         />
         <canvas ref={canvasRef} />
       </div>
+      {videoError && (
+        <p className="error" role="alert">
+          이 브라우저에서 영상을 재생할 수 없습니다 (예: HEVC .mov). MP4(H.264)로 변환해 올려 주세요.
+        </p>
+      )}
       <input
         className="overlay-scrub"
         type="range"

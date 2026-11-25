@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import fixture from "../fixtures/sample-result.json";
 import type { AnalysisResult, AnalysisState } from "../types";
 
@@ -10,7 +11,14 @@ vi.mock("../api", async (orig) => ({
   pollAnalysis: (...a: Parameters<Poll>) => impl(...a),
   videoUrl: () => "/v.mp4",
 }));
-vi.mock("./VideoOverlay", () => ({ default: () => <div data-testid="overlay" /> }));
+type SeekTo = { frame: number; nonce: number } | undefined;
+const overlay = vi.hoisted(() => ({ seekTo: [] as SeekTo[] }));
+vi.mock("./VideoOverlay", () => ({
+  default: (p: { seekTo?: SeekTo }) => {
+    overlay.seekTo.push(p.seekTo);
+    return <div data-testid="overlay" />;
+  },
+}));
 
 import AnalysisPage from "./AnalysisPage";
 import { HttpError } from "../api";
@@ -21,6 +29,27 @@ const done = (result: AnalysisResult): AnalysisState => ({ status: "done", error
 describe("AnalysisPage", () => {
   beforeEach(() => {
     impl = () => () => {};
+    overlay.seekTo.length = 0;
+  });
+
+  it("says processing time depends on length and fps", () => {
+    impl = (_id, onUpdate) => (onUpdate({ status: "processing", error: null, result: null }), () => {});
+    render(<AnalysisPage id="x" />);
+    expect(screen.getByRole("status")).toHaveTextContent("영상 길이와 fps에 따라 수십 초~수 분");
+    expect(screen.getByRole("status")).not.toHaveTextContent("30초");
+  });
+
+  it("seeks again when the same phase is chosen twice", async () => {
+    const user = userEvent.setup();
+    impl = (_id, onUpdate) => (onUpdate(done(r)), () => {});
+    render(<AnalysisPage id="x" />);
+    const legLift = screen.getByRole("button", { name: /레그 리프트 프레임/ });
+    await user.click(legLift);
+    await user.click(legLift);
+    const requests = [...new Set(overlay.seekTo.filter((t) => t !== undefined))];
+    expect(requests).toHaveLength(2); // two distinct requests, so the overlay seeks twice
+    expect(requests.map((t) => t!.frame)).toEqual([0, 0]);
+    expect(requests[1]!.nonce).toBeGreaterThan(requests[0]!.nonce);
   });
 
   it("shows not-found instead of spinning", () => {

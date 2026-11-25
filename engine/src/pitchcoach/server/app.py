@@ -21,6 +21,7 @@ from ..models import Subject
 ALLOWED_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".webm"}
 _ID_RE = re.compile(r"^[0-9a-f]{32}$")
 _MSG_UNREADABLE = "영상을 읽을 수 없습니다. 다른 파일로 시도해 주세요."
+_MSG_INTERRUPTED = "서버가 재시작되어 분석이 중단되었습니다. 다시 올려 주세요."
 
 
 def _write_json(path: Path, obj) -> None:
@@ -39,9 +40,26 @@ def _error_message(exc: BaseException) -> str:
     return f"분석 중 오류가 발생했습니다: {type(exc).__name__}"
 
 
+def _fail_interrupted(data_dir: Path) -> None:
+    """Analyses left "processing" by a previous server run never finish: mark them failed."""
+    if not data_dir.is_dir():
+        return
+    for d in data_dir.iterdir():
+        if not _ID_RE.match(d.name):
+            continue
+        try:
+            st = _read_json(d / "status.json")
+            if st.get("status") == "processing":
+                st.update(status="failed", error=_MSG_INTERRUPTED)
+                _write_json(d / "status.json", st)
+        except (OSError, ValueError, AttributeError):
+            continue
+
+
 def create_app(data_dir: Path, estimator=None, web_dir: Path | None = None) -> FastAPI:
     data_dir = Path(data_dir)
     app = FastAPI(title="pitchcoach")
+    _fail_interrupted(data_dir)  # jobs run in this process, so none can be running yet
 
     def adir(aid: str) -> Path:
         if not _ID_RE.match(aid):

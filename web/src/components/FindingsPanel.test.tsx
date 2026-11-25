@@ -84,6 +84,12 @@ describe("FindingsPanel", () => {
     expect(screen.getByText("운동B")).toBeInTheDocument();
   });
 
+  it("labels the self-test without a duration", () => {
+    render(<FindingsPanel analysisId="id9" findings={[twoCause()]} metrics={r.metrics} />);
+    expect(screen.getAllByText(/^자가 테스트:/).length).toBe(2);
+    expect(screen.queryByText(/30초 자가 테스트/)).not.toBeInTheDocument();
+  });
+
   it("restores answers from localStorage", () => {
     localStorage.setItem("selftest:id9", JSON.stringify({ st_b: "yes", st_a: "no" }));
     render(<FindingsPanel analysisId="id9" findings={[twoCause()]} metrics={r.metrics} />);

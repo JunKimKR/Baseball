@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import tempfile
 import urllib.request
@@ -13,8 +14,11 @@ import numpy as np
 
 from .models import Keypoints, VideoMeta
 
+# Pinned to version 1 of the model (the "latest" alias could change under us); same file as
+# "latest" on 2026-11-25. The hash is checked for the cached file and after every download.
 MODEL_URL = ("https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
-             "pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task")
+             "pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task")
+MODEL_SHA256 = "64437af838a65d18e5ba7a0d39b465540069bc8aae8308de3e318aad31fcbc7b"
 MODEL_NAME = "pose_landmarker_heavy.task"
 N_LANDMARKS = 33
 
@@ -62,12 +66,26 @@ class PoseEstimator(Protocol):
     def estimate(self, video_path: Path) -> tuple[Keypoints, VideoMeta]: ...
 
 
-def ensure_model(model_path: Path | None = None) -> Path:
-    """Path of the heavy pose model, downloaded once (atomically) to ~/.cache/pitchcoach/."""
+class ModelDownloadError(RuntimeError):
+    """The downloaded pose model is not the pinned file."""
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def ensure_model(model_path: Path | None = None, cache_dir: Path | None = None) -> Path:
+    """Path of the pinned heavy pose model, downloaded once (atomically) to cache_dir
+    (default ~/.cache/pitchcoach/) and verified against MODEL_SHA256; a cached file that fails
+    the hash is downloaded again. An explicit model_path is used as given."""
     if model_path is not None:
         return Path(model_path)
-    path = Path.home() / ".cache" / "pitchcoach" / MODEL_NAME
-    if path.exists() and path.stat().st_size > 0:
+    path = Path(cache_dir or Path.home() / ".cache" / "pitchcoach") / MODEL_NAME
+    if path.is_file() and _sha256(path) == MODEL_SHA256:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".part")
@@ -75,6 +93,9 @@ def ensure_model(model_path: Path | None = None) -> Path:
         with os.fdopen(fd, "wb") as out, urllib.request.urlopen(MODEL_URL, timeout=120) as resp:
             while chunk := resp.read(1 << 20):
                 out.write(chunk)
+        digest = _sha256(Path(tmp))
+        if digest != MODEL_SHA256:
+            raise ModelDownloadError(f"{MODEL_URL}: sha256 {digest} != pinned {MODEL_SHA256}")
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):

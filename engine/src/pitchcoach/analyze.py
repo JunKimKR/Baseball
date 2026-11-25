@@ -17,13 +17,15 @@ from .metrics import compute_metrics
 from .models import AnalysisResult, AnalysisWarning, Energy, Events, Keypoints, Metric, Subject
 from .norms import load_norms_for_fps, score_metrics
 from .pose import MediaPipeEstimator, PoseEstimator
-from .quality import check_quality
+from .quality import check_quality, valid_fps
 from .scale import is_scale_uncertain, pixels_per_meter
 from .smoothing import smooth
 
 SCALE_MESSAGE = ("영상 처음의 자세가 이후 동작보다 작게 잡혀 키로 환산한 크기가 부정확할 수 있습니다"
                  "(처음에 숙이고 있었거나 카메라 거리·확대가 바뀐 경우). 보폭과 속도(m/s) 지표는 참고만 하세요. "
                  "녹화를 시작한 뒤 0.5초 이상 똑바로 선 자세로 시작하세요.")
+PLAYBACK_FPS_MESSAGE = ("영상 파일에 fps 정보가 없어 입력한 촬영 fps로 재생 위치를 맞춥니다. 오버레이가 영상과 "
+                        "어긋나 보이면 MP4로 변환해 다시 올려 주세요.")
 CAMERA_MOTION_THRESHOLD = 0.05
 CAMERA_MOTION_MESSAGE = ("카메라가 움직였습니다. 속도 지표와 릴리스 시 몸통 숙임은 참고만 하세요. "
                          "삼각대로 고정해 촬영하세요.")
@@ -62,9 +64,14 @@ def analyze(video_path: Path, subject: Subject, estimator: PoseEstimator | None 
     if capture_fps is not None:
         meta = dataclasses.replace(meta, capture_fps=float(capture_fps))
     fps = meta.analysis_fps
+    playback_assumed = not valid_fps(meta.fps) and valid_fps(fps)
+    if playback_assumed:  # no usable playback rate in the file: the capture fps is all we have
+        meta = dataclasses.replace(meta, fps=fps)
 
     key_joints = list(side_joints(subject.hand).values())
     warnings = check_quality(meta, kp_raw, subject, key_joints)
+    if playback_assumed:
+        warnings.append(AnalysisWarning("PLAYBACK_FPS_ASSUMED", "info", PLAYBACK_FPS_MESSAGE))
     if any(w.severity == "error" for w in warnings):
         return AnalysisResult(meta=meta, subject=subject, warnings=warnings, keypoints=kp_raw)
 

@@ -32,8 +32,8 @@ class VideoMeta:
 
     @property
     def duration_s(self) -> float:
-        """Playback duration of the file (container fps)."""
-        return self.n_frames / self.fps if self.fps else 0.0
+        """Playback duration of the file (container fps); 0 when the fps is unusable."""
+        return self.n_frames / self.fps if math.isfinite(self.fps) and self.fps > 0 else 0.0
 
 
 @dataclass
@@ -180,7 +180,9 @@ class AnalysisResult:
             vis = np.asarray(self.keypoints.vis, dtype=float)
             frames = np.concatenate([xy, vis[..., None]], axis=-1)
         meta = _plain(self.meta)
-        meta["capture_fps"] = _plain(self.meta.analysis_fps)
+        if meta["fps"] is None:  # NaN from the container: 0 = unknown, as OpenCV reports it
+            meta["fps"] = 0.0
+        meta["capture_fps"] = _plain(self.meta.analysis_fps)  # None only when it is unusable too
         meta["duration_s"] = self.meta.duration_s
         return {
             "schema_version": SCHEMA_VERSION,

@@ -7,19 +7,20 @@ name = "pitchcoach"
 version = "0.1.0"
 description = "Side-view pitching video analysis engine"
 requires-python = ">=3.11"
+# Pinned to the versions the app was developed and tested with (reproducible results).
 dependencies = [
-    "numpy",
-    "scipy",
-    "opencv-python",
-    "mediapipe",
-    "pyyaml",
-    "fastapi",
-    "uvicorn",
-    "python-multipart",
+    "numpy==2.5.5",
+    "scipy==1.18.1",
+    "opencv-python==5.1.0.95",
+    "mediapipe==1.2.3",
+    "pyyaml==6.0.4",
+    "fastapi==0.165.0",
+    "uvicorn==0.54.0",
+    "python-multipart==0.0.34",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "httpx"]
+dev = ["pytest==9.2.0", "httpx==0.28.1"]
 
 [project.scripts]
 pitchcoach = "pitchcoach.cli:main"

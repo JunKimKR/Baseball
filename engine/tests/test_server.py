@@ -179,3 +179,20 @@ def test_capture_fps_out_of_range_422(pitch, tmp_path):
         r = _upload(c, capture_fps=bad)
         assert r.status_code == 422, bad
     assert list(tmp_path.iterdir()) == []
+
+
+def test_startup_marks_interrupted_analyses_failed(pitch, tmp_path):
+    """An analysis still "processing" when the server starts was cut off by a restart."""
+    stale, done = "a" * 32, "b" * 32
+    for aid, status in ((stale, "processing"), (done, "done")):
+        (tmp_path / aid).mkdir()
+        (tmp_path / aid / "status.json").write_text(json.dumps(
+            {"id": aid, "status": status, "error": None, "created_at": "2026-11-25T00:00:00+00:00",
+             "subject": {"height_cm": 180.0, "hand": "R", "camera_side": "arm"}}), encoding="utf-8")
+    (tmp_path / "notes").mkdir()  # not an analysis directory: ignored
+    (tmp_path / ("c" * 32)).mkdir()  # no status.json: ignored
+    c = _client(tmp_path, FakeEstimator(*pitch))
+    body = c.get(f"/api/analyses/{stale}").json()
+    assert body["status"] == "failed"
+    assert body["error"] == "서버가 재시작되어 분석이 중단되었습니다. 다시 올려 주세요."
+    assert c.get(f"/api/analyses/{done}").json()["status"] == "done"

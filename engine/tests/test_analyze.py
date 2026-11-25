@@ -157,3 +157,21 @@ def test_analyze_warns_on_uncertain_scale(tmp_path):
 def test_analyze_no_scale_warning_on_upright_start(pitch, tmp_path):
     res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(*pitch))
     assert "SCALE_UNCERTAIN" not in [w.code for w in res.warnings]
+
+
+@pytest.mark.parametrize("bad", [0.0, float("nan")])
+def test_analyze_bad_container_fps(bad, tmp_path):
+    kp, truth = make_pitch(fps=240)
+    meta = VideoMeta(fps=bad, width=1080, height=1920, n_frames=kp.xy.shape[0])
+    res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(kp, meta))
+    assert [(w.code, w.severity) for w in res.warnings] == [("BAD_FPS", "error")]
+    assert res.metrics == [] and res.findings == []
+    json.dumps(res.to_dict(), allow_nan=False)
+
+    # with the capture fps entered, the analysis runs; playback sync falls back to it
+    res = analyze(tmp_path / "x.mp4", SUBJECT, FakeEstimator(kp, meta), capture_fps=240.0)
+    assert not any(w.severity == "error" for w in res.warnings)
+    assert res.meta.fps == 240.0 and res.meta.capture_fps == 240.0
+    info = [w for w in res.warnings if w.code == "PLAYBACK_FPS_ASSUMED"]
+    assert len(info) == 1 and info[0].severity == "info"
+    assert abs(res.events.release - truth.release) <= 2

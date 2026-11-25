@@ -5,7 +5,12 @@ per frame rate: 30, 60, 120 and 240 Hz) are built from Driveline Baseball's
 [OpenBiomechanics Project](https://github.com/drivelineresearch/openbiomechanics)
 by `engine/scripts/build_obp_norms.py`. This file documents the data, the checks made on it, and
 how the norms were derived. Only this README is committed. The downloads live in git-ignored
-directories:
+directories (below).
+
+**Reproducibility of the numbers.** Unmarked numbers are printed by the build
+(`build_obp_norms.py`), recorded in the norm files, or checked by the tests, so the committed code
+regenerates them. Numbers marked *(one-off)* come from one-time explorations of the data with
+scripts that are not committed; the committed code does not regenerate them.
 
 | Path (git-ignored) | Contents |
 |---|---|
@@ -61,6 +66,9 @@ the OBP data for any use whatsoever without a specific written commercial (paid)
 
 ## What the data contain
 
+File facts *(one-off: read off the files once; the build re-checks the 360 Hz grid of every
+trial, the trial-row order and the playing levels)*.
+
 **`landmarks.csv`** (in the zip):
 - 62 columns, 411 trials, 306–1114 rows per trial (0.85–3.09 s).
 - `session_pitch`: trial id; the rows of each trial are contiguous.
@@ -101,7 +109,10 @@ Arms are named throwing (no prefix) / glove and legs lead / rear, not left / rig
 **`baseball_pitching/data/poi/poi_metrics.csv`**: the throwing hand, `p_throws`, which
 metadata.csv does not have. R: 328 trials, L: 83.
 
-### Checks on the data (all 411 trials)
+### Checks on the data (all 411 trials) *(one-off)*
+
+Made once when the data were first explored. The build re-checks only that our
+`throw_direction` is +1 and that the throwing wrist is the fastest joint at release, per trial.
 
 - `wrist_jc` is the throwing wrist. Its 3D peak speed is 17–23 m/s, against 3–10 m/s for
   `glove_wrist_jc`, and it is faster in every trial.
@@ -137,7 +148,8 @@ metadata.csv does not have. R: 328 trials, L: 83.
 only how precisely: `smooth()` caps its cutoff at 0.2 × fps (15 Hz at 120 fps and above, 12 Hz at
 60 fps, 6 Hz at 30 fps), and peaks are sampled once per frame. Run through the same code at
 60 fps, the reference pitchers' peak wrist speed is a median 1.84 m/s lower than at 240 fps
-(−1.7 norm sd), and at 30 fps 6.4 m/s lower. So the trials are run through the pipeline as a video
+(−1.7 norm sd), and at 30 fps 6.4 m/s lower *(one-off, same trial at each rate; the norm means
+in the table below show the same drop)*. So the trials are run through the pipeline as a video
 of each packaged rate (`--fps` 30, 60, 120, 240), and a video is scored against the norms of its
 own rate (below).
 
@@ -158,7 +170,7 @@ OBP's own events are used only for the agreement table below.
 
 **Population**: playing level college or above (`college`, `independent`, `milb`); `high_school`
 is excluded. That gives **379 trials, 93 athletes**: 310 trials RHP, 69 LHP; heights
-167.6–203.2 cm.
+167.6–203.2 cm *(handedness and heights one-off)*.
 
 **Skipped trials per norm rate** (each norm file records them in `population`):
 
@@ -173,7 +185,8 @@ At 30 Hz every miss is the foot plant (the leg-lift peak and MER are searched fr
 is always found). Our plant rule needs the lead ankle below 0.5 m/s for 3 frames before release,
 which is 100 ms at 30 fps, and the missed trials are mostly quick deliveries: their 240 Hz
 FP→BR is 96 ± 29 ms against 113 ± 19 ms for the rest. Their other 240 Hz values differ little
-(stride 71.7 vs 73.0 %, knee flexion at plant 44.2 vs 46.9°, wrist speed 19.5 vs 19.4 m/s).
+(stride 71.7 vs 73.0 %, knee flexion at plant 44.2 vs 46.9°, wrist speed 19.5 vs 19.4 m/s)
+*(one-off comparison of the 68 missed trials with the 311 others, 28 vs 86 athletes)*.
 So the 30 Hz norms describe the pitches whose foot plant a 30 fps video can show.
 
 **Norms**: every metric whose default confidence is not `low` (12 metrics), with the mean and
@@ -215,7 +228,7 @@ slow test `test_fps_matched_norms_keep_reference_finding_rates` checks this and 
 the committed code (it scored every rate against the 240 Hz norms, as before this change): 78.1 %
 at 60 Hz and 21.9 % at 120 Hz, median wrist z −1.61 at 60 Hz.
 
-The projected metrics track OBP's own 3D values: stride r = 0.82 (OBP's
+*(One-off)* The projected metrics track OBP's own 3D values: stride r = 0.82 (OBP's
 `stride_length` mean is 83.5 %), trunk flexion at release r = 0.79 (OBP mean 34.3°), and lead-knee
 extension r = 0.74.
 
@@ -228,6 +241,9 @@ extension r = 0.74.
 | release vs `BR_time` | −12.5 | −13.9 … −11.1 | 379 |
 | leg-lift peak vs `pkh_time` (all 411 trials) | 0.0 | −1.4 … +1.4 | 411 |
 
+The build prints the `fp_100_time` and `BR_time` rows; the `fp_10_time` and `pkh_time` rows are
+*(one-off)*.
+
 At the other norm rates the build prints (medians): foot plant vs `fp_100_time` +16.6 ms at 120 Hz,
 +22.3 ms at 60 Hz and +33.4 ms at 30 Hz; release vs `BR_time` −11.1, −11.1 and −13.9 ms. Coarser
 frames make our foot plant later, which is why `fp_to_br_ms` falls from 110 ms (240 Hz) to 100 ms
@@ -236,15 +252,15 @@ frames make our foot plant later, which is why `fp_to_br_ms` falls from 110 ms (
 What follows from these differences:
 
 - **Release.** Our release is the 2D wrist-speed peak. The wrist joint center peaks before ball
-  release in 3D too (median −14 ms in the raw data), so the offset is part of the definition,
+  release in 3D too (median −14 ms in the raw data, *one-off*), so the offset is part of the definition,
   not the projection.
 - **Foot plant.** Our foot plant is when the lead ankle has stopped (< 0.5 m/s for ≥ 3 frames).
   The ankle center keeps moving for a while after force-plate contact.
 - **Short FP→BR.** Together these make `fp_to_br_ms` about 25 ms shorter than OBP's
-  `BR_time − fp_100_time` (median 136 ms). The norm uses the same definitions as the video
+  `BR_time − fp_100_time` (median 136 ms, *one-off*). The norm uses the same definitions as the video
   analysis.
 - **Large disagreements.** 32 trials disagree with `fp_100_time` by more than 40 ms; the build
-  prints this count.
+  prints this count. Their classification below is *(one-off)*, made by inspecting the trials.
   - 9 are OBP force-plate events that cannot be right: OBP's own FP→BR is −72 to 661 ms
     (athletes 2918 and 2923).
   - 4 are one athlete (2990) for whom our foot plant is within 5 ms of first contact
@@ -255,7 +271,7 @@ What follows from these differences:
   - 7 are **early misses**. The ankle stops moving forward 6–8 cm above the ground while it
     still moves sideways, which a side view cannot see; the knee is nearly straight (7–25°
     flexion).
-- **Effect of the 19 misses (5 %).** They are kept, as the build plan specifies. Excluding them
+- **Effect of the 19 misses (5 %)** *(one-off)*. They are kept, as the build plan specifies. Excluding them
   would move no mean by more than 0.7 units. It would tighten three sds:
 
   | Metric | SD with misses | SD without |
@@ -268,8 +284,8 @@ What follows from these differences:
 
 ### Why `elbow_ext_peak_vel_dps` has no norm
 
-Its default confidence is `low`, a controller ruling on the numbers below. It is still computed
-and shown, but not scored.
+Its default confidence is `low`, a controller ruling on the numbers below *(all one-off)*. It is
+still computed and shown, but not scored.
 
 - It is the rate of the **projected** elbow angle, and it mostly measures forearm
   foreshortening.
@@ -299,13 +315,13 @@ addition is negligible. The attached norm keeps the population sd.
 
 ### Caveats for using the norms
 
-- `gap_pelvis_shoulder_ms` has a wide spread (sd 64 ms, robust sd 31 ms). The 2D pelvis-center
-  speed has a broad plateau during the stride, and its peak frame falls anywhere from 130 ms
-  before to 40 ms after foot plant (5th–95th percentile).
+- `gap_pelvis_shoulder_ms` has a wide spread (sd 64 ms; robust sd 31 ms, *one-off*). The 2D
+  pelvis-center speed has a broad plateau during the stride, and its peak frame falls anywhere
+  from 130 ms before to 40 ms after foot plant (5th–95th percentile, *one-off*).
 - The norms come from orthographic projections of marker-based joint centers. A video adds
   perspective, keypoint noise and MediaPipe joint definitions on top.
 - Peak wrist speed loses about 1 % to the projection and resampling (3D raw 21.0 m/s → 2D raw
-  20.7 m/s, medians) and 5 % to our 15 Hz smoothing (→ 19.6 m/s). OBP had already low-passed
+  20.7 m/s, medians) and 5 % to our 15 Hz smoothing (→ 19.6 m/s) *(one-off, at 240 Hz)*. OBP had already low-passed
   the data at 20 Hz, which a video does not do, so the norms' peak speeds may be slightly lower
   than a video of the same pitch would give.
 
