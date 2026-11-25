@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { pollAnalysis } from "../api";
+import { pollAnalysis, videoUrl } from "../api";
+import VideoOverlay from "./VideoOverlay";
 import type { AnalysisState } from "../types";
 
-/** Placeholder until the analysis page (Task 13). */
+/** Placeholder until the analysis page (Task 13); temporarily mounts the video overlay. */
 export default function AnalysisPlaceholder({ id }: { id: string }) {
   const [state, setState] = useState<AnalysisState | null>(null);
   useEffect(() => {
@@ -23,6 +24,9 @@ export default function AnalysisPlaceholder({ id }: { id: string }) {
       <a href="#/" className="back">← 처음으로</a>
       <h1>분석 결과</h1>
       <p className={state?.status === "failed" ? "error" : "muted"} role="status">{label}</p>
+      {state?.status === "done" && state.result && (
+        <VideoOverlay result={state.result} videoSrc={videoUrl(id)} />
+      )}
     </section>
   );
 }
