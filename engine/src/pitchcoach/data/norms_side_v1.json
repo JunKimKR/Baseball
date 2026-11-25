@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "population": {
+    "levels": [
+      "college",
+      "independent",
+      "milb"
+    ],
+    "n_trials": 379,
+    "n_athletes": 93,
+    "n_trials_skipped": 0,
+    "skipped": {}
+  },
+  "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0",
+  "license": "CC BY-NC-SA 4.0",
+  "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+  "method": "OBP 3D 관절 중심(360 Hz, m)을 측면으로 투영(x = X: 2루→홈, y = −Z) → 240 Hz 선형 리샘플 → pitchcoach smooth(15 Hz 저역통과) → detect_events·throw_direction·compute_metrics(영상 분석과 같은 정의) → 지표별 평균·표본표준편차",
+  "norms": {
+    "stride_length_pct_height": {
+      "mean": 72.748,
+      "sd": 4.6798,
+      "n": 379,
+      "direction": "higher",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "lead_knee_flexion_fp_deg": {
+      "mean": 46.425,
+      "sd": 8.5109,
+      "n": 379,
+      "direction": "target",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "lead_knee_extension_deg": {
+      "mean": 2.6094,
+      "sd": 12.598,
+      "n": 379,
+      "direction": "higher",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "pelvis_peak_speed_ms": {
+      "mean": 2.3866,
+      "sd": 0.35379,
+      "n": 379,
+      "direction": "higher",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "trunk_flexion_br_deg": {
+      "mean": 26.254,
+      "sd": 8.3209,
+      "n": 379,
+      "direction": "target",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "trunk_flexion_peak_vel_dps": {
+      "mean": 341.57,
+      "sd": 59.352,
+      "n": 379,
+      "direction": "higher",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "shoulder_peak_speed_ms": {
+      "mean": 3.866,
+      "sd": 0.45983,
+      "n": 379,
+      "direction": "higher",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "elbow_ext_peak_vel_dps": {
+      "mean": 6332.6,
+      "sd": 1867.2,
+      "n": 379,
+      "direction": "higher",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "wrist_peak_speed_ms": {
+      "mean": 19.453,
+      "sd": 1.0893,
+      "n": 379,
+      "direction": "higher",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "fp_to_br_ms": {
+      "mean": 110.1,
+      "sd": 22.094,
+      "n": 379,
+      "direction": "target",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "gap_pelvis_shoulder_ms": {
+      "mean": 32.157,
+      "sd": 64.162,
+      "n": 379,
+      "direction": "target",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "gap_shoulder_elbow_ms": {
+      "mean": 86.533,
+      "sd": 19.498,
+      "n": 379,
+      "direction": "target",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    },
+    "gap_elbow_wrist_ms": {
+      "mean": 43.338,
+      "sd": 3.4493,
+      "n": 379,
+      "direction": "target",
+      "source": "OpenBiomechanics Project (Driveline Baseball) 투구 데이터 — https://github.com/drivelineresearch/openbiomechanics, 릴리스 dataset-v1 pitching_landmarks.zip, 저장소 커밋 331af0d196437cfc28c011a859a45543291099b5, CC BY-NC-SA 4.0"
+    }
+  }
+}

@@ -22,13 +22,13 @@ def test_load_norms(norms):
     assert norms["lo"].direction == "lower" and norms["hi"].source == "t"
 
 
-def test_load_default_missing_or_present():
-    try:
-        n = load_norms(None)
-    except FileNotFoundError as e:
-        assert "norms_side_v1.json" in str(e)
-    else:
-        assert isinstance(n, dict)
+def test_load_default_packaged_norms():
+    norms = load_norms()
+    assert norms
+    for name, n in norms.items():
+        assert n.source, name
+        assert n.direction in ("higher", "lower", "target"), name
+        assert n.sd > 0, name
 
 
 def test_score_higher(norms):
