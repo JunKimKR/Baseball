@@ -1,0 +1,50 @@
+:root {
+  --bg: #070b18;
+  --surface: #0e1530;
+  --surface-2: #162044;
+  --border: #243061;
+  --text: #f1f0ea;
+  --text-muted: #9aa3c0;
+  --energy-low: #1e3a8a;
+  --energy-high: #facc15;
+  --energy-gradient: linear-gradient(90deg, var(--energy-low), var(--energy-high));
+  --leak: #ff3b30;
+  --low-confidence: #6b7280;
+  --radius: 12px;
+  --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.5; }
+body { overflow-x: hidden; }
+.app { max-width: 720px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 0 0 12px; }
+a { color: var(--energy-high); }
+.muted { color: var(--text-muted); }
+.error { color: var(--leak); }
+.back { display: inline-block; margin-bottom: 8px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin: 16px 0; }
+.guide { margin: 0; padding-left: 1.2rem; }
+.guide li { margin-bottom: 6px; }
+
+.field { display: block; border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.field > span, .field legend { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.9rem; padding: 0; }
+.radio { margin-right: 16px; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+input[type="number"], input[type="file"] {
+  width: 100%; max-width: 100%; padding: 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit;
+}
+button {
+  width: 100%; min-height: 48px; border: 0; border-radius: 10px; font: inherit; font-weight: 700;
+  color: #0b1020; background: var(--energy-gradient); cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: progress; }
+
+.history { list-style: none; margin: 0; padding: 0; }
+.history li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.history li:last-child { border-bottom: 0; }
+.badge { font-size: 0.8rem; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-muted); white-space: nowrap; }
+.badge.done { color: var(--energy-high); }
+.badge.failed { color: var(--leak); }
