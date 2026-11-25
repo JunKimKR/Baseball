@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AnalysisResult, Confidence } from "../types";
 import { frameAt, toCanvas } from "../render/frame";
 import { activeLeaks, particlesFor, segmentStyle } from "../render/energy";
+import { notifyOnChange, shortcutFor } from "../render/controls";
 import { jointIndex, segmentJoints, segmentLines } from "../render/skeleton";
 import type { Pt, Segment } from "../render/skeleton";
 
@@ -23,6 +24,7 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
   const [frame, setFrame] = useState(0);
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
+  const notify = useMemo(() => notifyOnChange((f) => onFrameRef.current?.(f)), []);
 
   const { fps, n_frames: nFrames, width, height } = result.meta;
   const idx = useMemo(() => jointIndex(result.keypoints.joints), [result]);
@@ -33,7 +35,8 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
     return m;
   }, [result]);
 
-  const draw = useCallback(() => {
+  /** `mediaTime`: presentation time of the displayed frame (rVFC path); defaults to currentTime. */
+  const draw = useCallback((mediaTime?: number) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas) return;
@@ -49,9 +52,10 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cw, ch);
 
-    const f = frameAt(video.currentTime, fps, nFrames);
+    const t = mediaTime ?? video.currentTime;
+    const f = frameAt(t, fps, nFrames);
     // fractional position inside the frame keeps particles moving during playback
-    const fSmooth = Math.min(video.currentTime * fps, nFrames - 1);
+    const fSmooth = Math.min(t * fps, nFrames - 1);
     const kp = result.keypoints.frames[f];
     if (!kp) return;
     const leaks = activeLeaks(result.energy.leaks, f, Math.round(0.05 * fps));
@@ -105,8 +109,8 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
     });
 
     setFrame((prev) => (prev === f ? prev : f));
-    onFrameRef.current?.(f);
-  }, [result, idx, joints, conf, fps, nFrames, width, height]);
+    notify(f);
+  }, [notify, result, idx, joints, conf, fps, nFrames, width, height]);
 
   // redraw loop: requestVideoFrameCallback when available, else rAF
   useEffect(() => {
@@ -115,15 +119,21 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
     let stop = false;
     let handle = 0;
     const rvfc = "requestVideoFrameCallback" in video;
-    const loop = () => {
+    const loopRvfc = (_now: number, meta: { mediaTime: number }) => {
+      if (stop) return;
+      draw(meta.mediaTime);
+      handle = video.requestVideoFrameCallback(loopRvfc);
+    };
+    const loopRaf = () => {
       if (stop) return;
       draw();
-      handle = rvfc
-        ? (video as HTMLVideoElement).requestVideoFrameCallback(loop)
-        : requestAnimationFrame(loop);
+      handle = requestAnimationFrame(loopRaf);
     };
-    loop();
+    if (rvfc) handle = video.requestVideoFrameCallback(loopRvfc);
+    else loopRaf();
+    draw();
     const redraw = () => draw();
+    video.addEventListener("ratechange", redraw);
     video.addEventListener("seeked", redraw);
     video.addEventListener("loadeddata", redraw);
     window.addEventListener("resize", redraw);
@@ -131,6 +141,7 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
       stop = true;
       if (rvfc) video.cancelVideoFrameCallback(handle);
       else cancelAnimationFrame(handle);
+      video.removeEventListener("ratechange", redraw);
       video.removeEventListener("seeked", redraw);
       video.removeEventListener("loadeddata", redraw);
       window.removeEventListener("resize", redraw);
@@ -149,6 +160,14 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
     [fps, nFrames],
   );
 
+  const step = useCallback(
+    (d: number) => {
+      const v = videoRef.current;
+      if (v) seek(frameAt(v.currentTime, fps, nFrames) + d);
+    },
+    [seek, fps, nFrames],
+  );
+
   useEffect(() => {
     if (seekToFrame !== undefined) seek(seekToFrame);
   }, [seekToFrame, seek]);
@@ -165,16 +184,12 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      seek(frame - 1);
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault();
-      seek(frame + 1);
-    } else if (e.key === " ") {
-      e.preventDefault();
-      toggle();
-    }
+    const sc = shortcutFor(e);
+    if (!sc) return;
+    e.preventDefault();
+    if (sc === "prev") step(-1);
+    else if (sc === "next") step(1);
+    else toggle();
   };
 
   return (
@@ -201,9 +216,9 @@ export default function VideoOverlay({ result, videoSrc, seekToFrame, onFrame }:
         aria-label="프레임 이동"
       />
       <div className="overlay-controls">
-        <button type="button" className="ctl" onClick={() => seek(frame - 1)} aria-label="이전 프레임">◀</button>
+        <button type="button" className="ctl" onClick={() => step(-1)} aria-label="이전 프레임">◀</button>
         <button type="button" className="ctl" onClick={toggle}>{playing ? "정지" : "재생"}</button>
-        <button type="button" className="ctl" onClick={() => seek(frame + 1)} aria-label="다음 프레임">▶</button>
+        <button type="button" className="ctl" onClick={() => step(1)} aria-label="다음 프레임">▶</button>
         <span className="muted overlay-frame">프레임 {frame} / {nFrames - 1}</span>
       </div>
       <div className="overlay-speeds" role="group" aria-label="재생 속도">
