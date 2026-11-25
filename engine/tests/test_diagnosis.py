@@ -15,7 +15,7 @@ def _rule(rid, when, **extra):
         "id": rid, "title": f"title-{rid}", "when": {"any": when},
         "evidence_template": "값 {value}{unit} (z={z})",
         "causes": [{
-            "id": f"{rid}_c", "title": "원인",
+            "id": f"{rid}_c", "title": "원인", "cause_source": "Author et al., 2020",
             "self_test": {"id": f"{rid}_t", "instruction": "해보세요",
                           "options": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}],
                           "implies_cause_on": "b", "source": "Author et al., 2020, T, J. PMID 1 DOI x"},
@@ -122,3 +122,9 @@ def test_validate_rules_catches_low_confidence_metric():
     rules = copy.deepcopy(RULES)
     rules[0]["when"]["any"][0]["metric"] = low
     assert any(low in e and "low" in e for e in validate_rules(rules))
+
+
+def test_validate_rules_catches_empty_cause_source():
+    rules = copy.deepcopy(RULES)
+    rules[0]["causes"][0]["cause_source"] = ""
+    assert any("cause_source" in e for e in validate_rules(rules))

@@ -50,6 +50,8 @@ def validate_rules(rules: list[dict]) -> list[str]:
             st = cause.get("self_test") or {}
             if len(st.get("options", [])) < 2:
                 errors.append(f"{cid}: self_test needs at least 2 options")
+            if _blank(cause.get("cause_source")):
+                errors.append(f"{cid}: cause has empty cause_source")
             if _blank(st.get("source")):
                 errors.append(f"{cid}: self_test has empty source")
             for ex in cause.get("exercises", []):
