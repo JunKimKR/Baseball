@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pitchcoach.models import Metric
+from pitchcoach.models import Metric, Norm
 from pitchcoach.norms import load_norms, score_metrics
 
 FIX = Path(__file__).parent / "fixtures" / "norms_test.json"
@@ -67,3 +67,33 @@ def test_score_does_not_mutate(norms):
     x = m("hi", 14.0)
     (r,) = score_metrics([x], norms)
     assert x.score is None and x.norm is None and r is not x
+
+
+@pytest.fixture
+def timing_norms():
+    # the packaged gap_elbow_wrist_ms norm: narrower than one 240 Hz frame (4.17 ms)
+    return {"gap_elbow_wrist_ms": Norm(mean=43.338, sd=3.4493, direction="target", source="t"),
+            "wrist_peak_speed_ms": Norm(mean=19.453, sd=1.0886, direction="higher", source="t")}
+
+
+def _metric(name, value, unit):
+    return Metric(name=name, label=name, value=value, unit=unit, confidence="medium", segment="arm")
+
+
+def test_timing_sd_widened_by_frame_quantum(timing_norms):
+    gap = _metric("gap_elbow_wrist_ms", 33.3, "ms")
+    (at60,) = score_metrics([gap], timing_norms, fps=60.0)
+    # sd_eff = sqrt(3.4493^2 + (1000/60)^2 / 6) = 7.6285 ms -> z = -1.3159 -> target score 19
+    assert at60.z == pytest.approx(-1.3159, abs=1e-4) and at60.score == 19
+    assert at60.norm is timing_norms["gap_elbow_wrist_ms"] and at60.norm.sd == 3.4493
+    (plain,) = score_metrics([gap], timing_norms)
+    assert plain.z == pytest.approx(-2.9102, abs=1e-4) and plain.score == 0
+    (zero_fps,) = score_metrics([gap], timing_norms, fps=0.0)
+    assert zero_fps.score == 0
+
+
+def test_non_timing_metrics_unaffected_by_fps(timing_norms):
+    wrist = _metric("wrist_peak_speed_ms", 18.0, "m/s")
+    (at60,) = score_metrics([wrist], timing_norms, fps=60.0)
+    (plain,) = score_metrics([wrist], timing_norms)
+    assert at60.score == plain.score == 9 and at60.z == plain.z

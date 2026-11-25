@@ -9,7 +9,7 @@ directories:
 | Path (git-ignored) | Contents |
 |---|---|
 | `raw/pitching_landmarks.zip` | Release `dataset-v1` asset, one member `landmarks.csv` (110 MB unzipped) |
-| `repo/` | Shallow, sparse clone of the OBP repository at commit `331af0d196437cfc28c011a859a45543291099b5` |
+| `repo/` | Shallow, sparse clone of the OBP repository pinned to commit `331af0d196437cfc28c011a859a45543291099b5`, holding only the 7 files listed below |
 
 ## Fetching (from `engine/`)
 
@@ -19,14 +19,19 @@ curl -sSL --fail -o data/obp/raw/pitching_landmarks.zip \
   https://github.com/drivelineresearch/openbiomechanics/releases/download/dataset-v1/pitching_landmarks.zip
 sha256sum data/obp/raw/pitching_landmarks.zip
 # efcc078d5d8e77ed1fbf0b9f6a78f750c57a624165f71f30e34142b74db7ec22 (the build script checks it)
-git clone --depth 1 --filter=blob:none --sparse \
+git clone --filter=blob:none --no-checkout --depth 1 \
   https://github.com/drivelineresearch/openbiomechanics.git data/obp/repo
-git -C data/obp/repo sparse-checkout set --no-cone '/*.md' \
-  '/baseball_pitching/README.md' '/baseball_pitching/data/metadata.csv' \
-  '/baseball_pitching/data/poi/poi_metrics.csv' '/baseball_pitching/data/data_dictionary.csv'
+git -C data/obp/repo sparse-checkout set --no-cone /LICENSE-DATA.md /DATASHEET.md /README.md \
+  /baseball_pitching/README.md /baseball_pitching/data/metadata.csv \
+  /baseball_pitching/data/poi/poi_metrics.csv /baseball_pitching/data/data_dictionary.csv
+git -C data/obp/repo fetch --depth 1 origin 331af0d196437cfc28c011a859a45543291099b5
+git -C data/obp/repo checkout --detach 331af0d196437cfc28c011a859a45543291099b5
 ```
 
-Only CSV and Markdown files are used. No code from the OBP repository is run.
+- The clone is pinned to the commit the norms were built from.
+- The sparse set lists files one by one, so the repository's agent-instruction files
+  (`CLAUDE.md`, `AGENTS.md`) are never checked out.
+- Only these CSV and Markdown files are used, as data. No code from the OBP repository is run.
 
 ## License
 
@@ -222,6 +227,27 @@ and shown, but not scored.
   relative to the camera.
 - With direction `higher`, a norm would reward foreshortening, and the spec forbids overstating
   precision.
+
+### Timing scores at video frame rates
+
+**Why.** The `gap_elbow_wrist_ms` norm (sd 3.45 ms) is narrower than one frame: 4.17 ms at
+240 fps, 16.7 ms at 60 fps. Without a correction, ±1 frame of jitter in the peak frame decides
+its score.
+
+**Formula.** A timing value is the difference of two frame times, each quantized to 1000/fps ms;
+each error is uniform, with variance q²/12. So `score_metrics(metrics, norms, fps)` scores every
+metric with unit `ms` against sd_eff = √(sd² + (1000/fps)²/6). The attached norm keeps the
+population sd. The OBP sd already contains the 240 Hz quantum, so the correction is slightly
+conservative at 240 fps.
+
+**Effect on `gap_elbow_wrist_ms`** (each reachable value: score without the correction → with
+it):
+
+| fps | sd_eff | Scores |
+|---|---|---|
+| 240 | 3.85 ms | 37.5 ms: 9 → 13; 41.7 ms: 63 → 66; 45.8 ms: 47 → 52; 50.0 ms: 5 → 8 |
+| 120 | 4.84 ms | 41.7 ms: 63 → 73; 50.0 ms: 5 → 17 |
+| 60 | 7.63 ms | 33.3 ms: 0 → 19; 50.0 ms: 5 → 38 |
 
 ### Caveats for using the norms
 

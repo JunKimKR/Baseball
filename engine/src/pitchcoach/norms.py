@@ -48,8 +48,25 @@ def _score(z: float, direction: str) -> int:
     return round(s)
 
 
-def score_metrics(metrics: list[Metric], norms: dict[str, Norm]) -> list[Metric]:
-    """Return new Metrics with z/score/norm attached; inputs are not mutated."""
+def _effective_sd(sd: float, unit: str, fps: float | None) -> float:
+    """sd for z: timing metrics (unit "ms") are widened by the video's frame quantum."""
+    if fps is None or not fps > 0 or unit != "ms":
+        return sd
+    frame_ms = 1000.0 / fps
+    return math.sqrt(sd * sd + frame_ms * frame_ms / 6.0)
+
+
+def score_metrics(metrics: list[Metric], norms: dict[str, Norm],
+                  fps: float | None = None) -> list[Metric]:
+    """Return new Metrics with z/score/norm attached; inputs are not mutated.
+
+    With the video's `fps` (> 0), z of a timing metric (unit "ms") uses
+    sd_eff = sqrt(sd**2 + (1000 / fps)**2 / 6) instead of sd. A timing value is the difference
+    of two frame times, each quantized to 1000 / fps ms (uniform error, variance q**2 / 12),
+    so without this a norm narrower than a frame lets one frame of jitter decide the score.
+    The score formulas are unchanged, and the attached norm stays the population norm.
+    With fps None, every metric uses the norm's sd.
+    """
     out: list[Metric] = []
     for met in metrics:
         norm = norms.get(met.name)
@@ -62,6 +79,6 @@ def score_metrics(metrics: list[Metric], norms: dict[str, Norm]) -> list[Metric]
         ):
             out.append(dataclasses.replace(met, score=None, z=None, norm=norm))
             continue
-        z = (met.value - norm.mean) / norm.sd
+        z = (met.value - norm.mean) / _effective_sd(norm.sd, met.unit, fps)
         out.append(dataclasses.replace(met, score=_score(z, norm.direction), z=z, norm=norm))
     return out
